@@ -5,13 +5,13 @@ REM ==============================
 REM CONFIGURACION
 REM ==============================
 
-set REPO_PATH=C:\Users\franklin\Documents\Kyutech\Thesis\Papers\githubs\github_COGU
+set "REPO_PATH=C:\Users\franklin\Documents\Kyutech\Thesis\Papers\githubs\github_COGU"
 
 REM Captura TODOS los argumentos
-set COMMIT_MSG=%*
+set "COMMIT_MSG=%*"
 
 if "%COMMIT_MSG%"=="" (
-    set COMMIT_MSG=Auto commit
+    set "COMMIT_MSG=Auto commit"
 )
 
 REM ==============================
@@ -23,7 +23,12 @@ echo ==============================
 echo Going to repository...
 echo ==============================
 
-cd /d "%https://github.com/Franklin10mfq/COGU%"
+cd /d "%REPO_PATH%"
+if errorlevel 1 (
+    echo ERROR: Cannot access repository path.
+    pause
+    exit /b
+)
 
 if not exist ".git" (
     echo ERROR: This is not a git repository.
