@@ -55,5 +55,5 @@ echo ==============================
 git push
 
 echo.
-echo Done 🚀
+echo Done :)
 pause
