@@ -1,0 +1,5 @@
+# CMake generation dependency list for this directory.
+C:/Users/franklin/Documents/Kyutech/Thesis/Papers/githubs/github_COGU/COGU_algorithms/Waskiri-Sat/WaskiriSat_SCVX_ECOS_T51_l2_q/c/solver_code/CMakeLists.txt
+C:/Users/franklin/anaconda3/envs/cvxpygen/Lib/site-packages/cmake/data/share/cmake-4.1/Modules/CMakePackageConfigHelpers.cmake
+C:/Users/franklin/anaconda3/envs/cvxpygen/Lib/site-packages/cmake/data/share/cmake-4.1/Modules/GNUInstallDirs.cmake
+C:/Users/franklin/anaconda3/envs/cvxpygen/Lib/site-packages/cmake/data/share/cmake-4.1/Modules/WriteBasicConfigVersionFile.cmake

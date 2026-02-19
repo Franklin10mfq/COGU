@@ -1,0 +1,8 @@
+C:/Users/franklin/Documents/Kyutech/Thesis/Papers/githubs/github_COGU/COGU_algorithms/Waskiri-Sat/WaskiriSat_SCVX_ECOS_T51/c/build/CMakeFiles/cpg_example.dir
+C:/Users/franklin/Documents/Kyutech/Thesis/Papers/githubs/github_COGU/COGU_algorithms/Waskiri-Sat/WaskiriSat_SCVX_ECOS_T51/c/build/CMakeFiles/cpg.dir
+C:/Users/franklin/Documents/Kyutech/Thesis/Papers/githubs/github_COGU/COGU_algorithms/Waskiri-Sat/WaskiriSat_SCVX_ECOS_T51/c/build/CMakeFiles/INSTALL.dir
+C:/Users/franklin/Documents/Kyutech/Thesis/Papers/githubs/github_COGU/COGU_algorithms/Waskiri-Sat/WaskiriSat_SCVX_ECOS_T51/c/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/franklin/Documents/Kyutech/Thesis/Papers/githubs/github_COGU/COGU_algorithms/Waskiri-Sat/WaskiriSat_SCVX_ECOS_T51/c/build/CMakeFiles/ZERO_CHECK.dir
+C:/Users/franklin/Documents/Kyutech/Thesis/Papers/githubs/github_COGU/COGU_algorithms/Waskiri-Sat/WaskiriSat_SCVX_ECOS_T51/c/build/solver_code/CMakeFiles/ecos.dir
+C:/Users/franklin/Documents/Kyutech/Thesis/Papers/githubs/github_COGU/COGU_algorithms/Waskiri-Sat/WaskiriSat_SCVX_ECOS_T51/c/build/solver_code/CMakeFiles/INSTALL.dir
+C:/Users/franklin/Documents/Kyutech/Thesis/Papers/githubs/github_COGU/COGU_algorithms/Waskiri-Sat/WaskiriSat_SCVX_ECOS_T51/c/build/solver_code/CMakeFiles/ALL_BUILD.dir
