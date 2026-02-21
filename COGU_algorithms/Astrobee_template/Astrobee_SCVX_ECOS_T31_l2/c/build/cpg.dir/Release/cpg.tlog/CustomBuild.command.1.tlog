@@ -1,0 +1,10 @@
+^C:\USERS\FRANKLIN\DOCUMENTS\KYUTECH\GITHUBS\GITHUB_COGU\COGU_ALGORITHMS\ASTROBEE_TEMPLATE\ASTROBEE_SCVX_ECOS_T31_L2\C\CMAKELISTS.TXT
+setlocal
+C:\Users\franklin\anaconda3\envs\cvxpygen\Lib\site-packages\cmake\data\bin\cmake.exe -SC:/Users/franklin/Documents/Kyutech/githubs/github_COGU/COGU_algorithms/Astrobee_template/Astrobee_SCVX_ECOS_T31_l2/c -BC:/Users/franklin/Documents/Kyutech/githubs/github_COGU/COGU_algorithms/Astrobee_template/Astrobee_SCVX_ECOS_T31_l2/c/build --check-stamp-file C:/Users/franklin/Documents/Kyutech/githubs/github_COGU/COGU_algorithms/Astrobee_template/Astrobee_SCVX_ECOS_T31_l2/c/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
