@@ -5,8 +5,7 @@ REM ==============================
 REM CONFIGURACION
 REM ==============================
 
-set "REPO_PATH=C:\Users\franklin\Documents\Kyutech\Thesis\Papers\githubs\github_COGU"
-
+set "REPO_PATH=C:\Users\franklin\Documents\Kyutech\githubs\github_COGU"
 REM Captura TODOS los argumentos
 set "COMMIT_MSG=%*"
 
