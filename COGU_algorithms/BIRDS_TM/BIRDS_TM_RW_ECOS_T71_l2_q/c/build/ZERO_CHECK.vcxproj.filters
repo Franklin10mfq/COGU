@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\franklin\Documents\Kyutech\githubs\github_COGU\COGU_algorithms\BIRDS_TM\BIRDS_TM_RW_ECOS_T71_l2_q\c\build\CMakeFiles\9045999fa6ea7a5631ef372abad6e595\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{D8FA9C0D-8A72-3C06-9A37-0E468DF54557}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

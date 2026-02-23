@@ -1,0 +1,10 @@
+^C:\USERS\FRANKLIN\DOCUMENTS\KYUTECH\GITHUBS\GITHUB_COGU\COGU_ALGORITHMS\BIRDS_TM\BIRDS_TM_RW_ECOS_T71_L2_Q\C\BUILD\CMAKEFILES\9045999FA6EA7A5631EF372ABAD6E595\GENERATE.STAMP.RULE
+setlocal
+C:\Users\franklin\anaconda3\envs\cvxpygen\Lib\site-packages\cmake\data\bin\cmake.exe -SC:/Users/franklin/Documents/Kyutech/githubs/github_COGU/COGU_algorithms/BIRDS_TM/BIRDS_TM_RW_ECOS_T71_l2_q/c -BC:/Users/franklin/Documents/Kyutech/githubs/github_COGU/COGU_algorithms/BIRDS_TM/BIRDS_TM_RW_ECOS_T71_l2_q/c/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/franklin/Documents/Kyutech/githubs/github_COGU/COGU_algorithms/BIRDS_TM/BIRDS_TM_RW_ECOS_T71_l2_q/c/build/cvxpygen.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
