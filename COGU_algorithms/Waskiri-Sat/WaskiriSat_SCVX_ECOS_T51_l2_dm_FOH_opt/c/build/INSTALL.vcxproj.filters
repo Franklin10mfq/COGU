@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\franklin\Documents\Kyutech\githubs\github_COGU\COGU_algorithms\Waskiri-Sat\WaskiriSat_SCVX_ECOS_T51_l2_dm_FOH_opt\c\build\CMakeFiles\bd9f04f2860d877b455e4d0fc35b5463\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{2F3D6184-3204-3D20-A050-23AA392A89EB}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
