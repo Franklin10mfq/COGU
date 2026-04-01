@@ -1,0 +1,10 @@
+^C:\USERS\FRANKLIN\DOCUMENTS\KYUTECH\GITHUBS\GITHUB_COGU\COGU_ALGORITHMS\WASKIRI_SAT_OFFICIAL\WASKIRISAT_T31_BSIMP\C\BUILD\CMAKEFILES\08551ECA44BA66AD755F2ACAA4E0324B\GENERATE.STAMP.RULE
+setlocal
+C:\Users\franklin\anaconda3\envs\cvxpygen\Lib\site-packages\cmake\data\bin\cmake.exe -SC:/Users/franklin/Documents/Kyutech/githubs/github_COGU/COGU_algorithms/Waskiri_Sat_official/WaskiriSat_T31_Bsimp/c -BC:/Users/franklin/Documents/Kyutech/githubs/github_COGU/COGU_algorithms/Waskiri_Sat_official/WaskiriSat_T31_Bsimp/c/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/franklin/Documents/Kyutech/githubs/github_COGU/COGU_algorithms/Waskiri_Sat_official/WaskiriSat_T31_Bsimp/c/build/cvxpygen.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
