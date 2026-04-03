@@ -1,7 +1,7 @@
 
 import numpy as np
 import math
-import custom_time_varying_functions as ctvf
+import COGU_algorithms.Waskiri_Sat_official.BSimp.custom_time_varying_functions as ctvf
 
 def f_SCVx(hx, hu, t, dyn_par):
     mRMM=ctvf.mRMM_function(t,dyn_par[11],dyn_par[12],dyn_par[13])
