@@ -26,6 +26,8 @@ from .scaling import (
 
 from .problem import build_problem
 
+from .pipeline import solve_trajectory
+
 from .solver import (
     discretize_ABy,
     discretize_CDz,

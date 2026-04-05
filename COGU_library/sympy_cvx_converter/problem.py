@@ -113,8 +113,9 @@ def build_problem(nx, nu, T, ng=0, convex_constraints_fn=None, extra_params=None
     if ng > 0:
         for k in range(T + 1):
             cost += cp.norm(tau_lamb * vi[:, k:k+1], 1)
-    for k in range(T + 1):
-        cost += cp.norm(tau_lamb * vi[:, k:k+1], 1)
+    if ng > 0:
+        for k in range(T + 1):
+            cost += cp.norm(tau_lamb * vi[:, k:k+1], 1)
 
     # ==================================================
     # RESTRICCIONES
