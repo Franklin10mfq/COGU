@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\franklin\Documents\Kyutech\githubs\github_COGU\COGU_algorithms\Waskiri_Sat_official\WMM\WaskiriSat_T31_WMM_ECOS\c\build\CMakeFiles\7d949325811dd14b17193e4a4ab19e0c\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{CD2A5F60-92AC-337D-AD5F-7EB57FA2697C}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
