@@ -58,7 +58,7 @@ def precompute_B_wmm(v0_double,r0_double,JD_double,dt_wmm_double,tf):
     ]
     lib.WMM_ECI_B.restype = None
 
-    B = np.zeros(3 * 500, dtype=np.float64)
+    B = np.zeros(3 * 600, dtype=np.float64)
 
     # llamada
     t0_auxaux_=time.time()
@@ -73,6 +73,6 @@ def precompute_B_wmm(v0_double,r0_double,JD_double,dt_wmm_double,tf):
     tf_auxaux_=time.time()
     print("Precomputed WMM, inference time [ms]",(tf_auxaux_-t0_auxaux_)*1000)
     # reshape a [3 x 500]
-    B = B.reshape((3, 500))
+    B = B.reshape((3, 600))
     B_final = B[:,0:int(tf / dt_wmm_double) + 1]
     return B_final   

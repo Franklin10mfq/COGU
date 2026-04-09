@@ -1,7 +1,7 @@
 #include "Orbit_Prop_Magnetic_Field.h"
 #include <stdio.h>
 #include <time.h>
-void WMM_ECI_B(real_T rt2v_pred_init[3], real_T rt2r_pred_init[3], real_T rt2JD, real_T rt2dt, int T, real_T WMM_ECI_B_pred_T[3][500])
+void WMM_ECI_B(real_T rt2v_pred_init[3], real_T rt2r_pred_init[3], real_T rt2JD, real_T rt2dt, int T, real_T WMM_ECI_B_pred_T[3][600])
 {
   Orbit_Prop_Magnetic_Field_initialize();
   rt2U.rt2v_flag=0;
