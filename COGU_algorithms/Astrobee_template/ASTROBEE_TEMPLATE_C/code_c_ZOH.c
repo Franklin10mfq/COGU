@@ -1,29 +1,29 @@
 /*
  * proob.c  –  SCVx / COGU con solver CPG (CVXPYGEN + ECOS)
  *
- * Compilar:
- *   gcc -O0 -g -std=c99 -D_USE_MATH_DEFINES proob.c
- *       generated_ecos_case1/c/src/cpg_solve.c
- *       generated_ecos_case1/c/src/cpg_workspace.c
- *       generated_ecos_case1/c/solver_code/src/ecos.c
- *       generated_ecos_case1/c/solver_code/src/kkt.c
- *       generated_ecos_case1/c/solver_code/src/cone.c
- *       generated_ecos_case1/c/solver_code/src/spla.c
- *       generated_ecos_case1/c/solver_code/src/timer.c
- *       generated_ecos_case1/c/solver_code/src/preproc.c
- *       generated_ecos_case1/c/solver_code/src/splamm.c
- *       generated_ecos_case1/c/solver_code/src/ctrlc.c
- *       generated_ecos_case1/c/solver_code/src/equil.c
- *       generated_ecos_case1/c/solver_code/src/expcone.c
- *       generated_ecos_case1/c/solver_code/src/wright_omega.c
- *       generated_ecos_case1/c/solver_code/external/amd/src/*.c
- *       generated_ecos_case1/c/solver_code/external/ldl/src/ldl.c
- *       -I generated_ecos_case1/c/include
- *       -I generated_ecos_case1/c/solver_code/include
- *       -I generated_ecos_case1/c/solver_code/external/SuiteSparse_config
- *       -I generated_ecos_case1/c/solver_code/external/amd/include
- *       -I generated_ecos_case1/c/solver_code/external/ldl/include
- *       -o proob -lm
+ * Compilar (desde la carpeta ASTROBEE_TEMPLATE_C/):
+ *   gcc -O0 -g -std=c99 -D_USE_MATH_DEFINES code_c_ZOH.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/src/cpg_solve.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/src/cpg_workspace.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/ecos.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/kkt.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/cone.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/spla.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/timer.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/preproc.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/splamm.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/ctrlc.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/equil.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/expcone.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/wright_omega.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/amd/src/*.c
+ *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/ldl/src/ldl.c
+ *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/include
+ *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/include
+ *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/SuiteSparse_config
+ *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/amd/include
+ *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/ldl/include
+ *       -o astrobee_cogu -lm
  */
 
 #include <stdio.h>

@@ -1,9 +1,8 @@
 import numpy as np
-import cvxpy as cp
+from cvxpygen import cpg
 import importlib.util
 import tempfile
 import os
-
 from .codegen import generate_functions
 from .problem import build_problem
 from .solver import solve_scvx
@@ -20,7 +19,9 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
                      etta0=1e-8, etta1=10.0, etta_init=1.0,
                      beta_sh=2.0, beta_gr=2.0,
                      e_tol=0.005, epsilon_stop=1e-5,
-                     solver='ECOS', verbose=True):
+                     solver='ECOS', verbose=True,
+                     generate_c=False, c_output_dir="c_output"):
+# AGREGADOS GENERATE C & C OUTPUT DIR 
     """
     Resuelve un problema de trayectoria optima via SCVx.
     El usuario define todo en SymPy y numpy — la libreria hace el resto.
@@ -58,7 +59,7 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
 
     # ── [A] Code generation ──
     codegen_file = tempfile.NamedTemporaryFile(
-        suffix='.py', delete=False, dir='.', prefix='_scvx_codegen_')
+        suffix='.py', delete=False, dir='.', prefix='scvx_codegen')
     codegen_file.close()
     codegen_path = codegen_file.name
 
@@ -105,61 +106,36 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
             warm_start_u = np.zeros((nu, T))
 
         # ── [D] Build problem ──
-        # Bounds → callback + extra_params
-        extra_params = {}
-        bound_limits = {}
-        if state_bounds:
-            for i, (slc, norm_type, limit) in enumerate(state_bounds):
-                name = f'_sb_{i}'
-                extra_params[name] = ()
-                bound_limits[name] = limit
-        if control_bounds:
-            for i, (slc, norm_type, limit) in enumerate(control_bounds):
-                name = f'_cb_{i}'
-                extra_params[name] = ()
-                bound_limits[name] = limit
-
-        def convex_constraints_fn(p):
-            if not state_bounds and not control_bounds:
-                return []
-            x = p['variables']['x']
-            u = p['variables']['u']
-            S_x_p = p['S_x_scaling']
-            c_x_p = p['c_x_scaling']
-            S_u_p = p['S_u_scaling']
-            c_u_p = p['c_u_scaling']
-            T_p = p['T']
-            ep = p['extra_params']
-            constraints = []
-            if state_bounds:
-                for i, (slc, norm_type, _) in enumerate(state_bounds):
-                    norm_map = {'norm1': 1, 'norm2': 2, 'norminf': 'inf'}
-                    p_val = norm_map[norm_type]
-                    for k in range(T_p + 1):
-                        constraints += [
-                            cp.norm(S_x_p[slc, slc] @ x[slc, k:k+1]
-                                    + c_x_p[slc, 0:1], p_val)
-                            <= ep[f'_sb_{i}']
-                        ]
-            if control_bounds:
-                for i, (slc, norm_type, _) in enumerate(control_bounds):
-                    norm_map = {'norm1': 1, 'norm2': 2, 'norminf': 'inf'}
-                    p_val = norm_map[norm_type]
-                    for k in range(T_p):
-                        constraints += [
-                            cp.norm(S_u_p[slc, slc] @ u[slc, k:k+1]
-                                    + c_u_p[slc, 0:1], p_val)
-                            <= ep[f'_cb_{i}']
-                        ]
-            return constraints
-
-        cfn = convex_constraints_fn if (state_bounds or control_bounds) else None
+        tau_val = tf / T
 
         prob_dict = build_problem(
             nx=nx, nu=nu, T=T, ng=ng,
-            convex_constraints_fn=cfn,
-            extra_params=extra_params if extra_params else None,
+            tau_val=tau_val, lamb_val=lamb,
+            S_x=S_x, c_x=c_x, S_u=S_u, c_u=c_u,
+            state_bounds=state_bounds,
+            control_bounds=control_bounds,
         )
+        # ── [D.5] Generar solver C con CVXPYgen (opcional) ──
+        if generate_c:
+            solver_dir = os.path.join(c_output_dir, 'solver')
+            os.makedirs(solver_dir, exist_ok=True)
+            try:
+                cpg.generate_code(prob_dict['problem'], code_dir=solver_dir, solver='ECOS')
+            except MemoryError as e:
+                raise MemoryError(
+                    f"CVXPYgen: problema demasiado grande para CVXPY 1.8 DPP expansion "
+                    f"(T={T}, nx={nx}, nu={nu}). Usar T<=10 con nx<=6 para generar C. "
+                    f"Original: {e}"
+                ) from e
+            except (ModuleNotFoundError, Exception) as e:
+                # C files generated OK; Python wrapper compilation failed (CMake missing, etc.)
+                c_src = os.path.join(solver_dir, 'c', 'src')
+                if os.path.isdir(c_src):
+                    print(f"[CVXPYgen] C code generated at {solver_dir}/c/")
+                    print(f"[CVXPYgen] Python wrapper compilation failed: {e}")
+                    print("[CVXPYgen] Para compilar: instalar CMake y correr setup.py en solver/")
+                else:
+                    raise
 
         # ── [E] Solve SCVx ──
         dyn_par = dynamic_parameters_val if dynamic_parameters_val is not None else np.array([])
@@ -183,7 +159,7 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
             'max_iter': max_iter,
             'solver': solver,
             'verbose': verbose,
-            'extra_param_values': bound_limits,
+            'extra_param_values': {},
         })
 
         return result

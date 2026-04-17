@@ -290,7 +290,6 @@ def solve_scvx(prob_dict, funcs, config):
     # --- Referencias CVXPY ---
     problem = prob_dict['problem']
     vars_ = prob_dict['variables']
-    params = prob_dict['params']
 
     # --- Buffers de discretizacion ---
     aux_A = np.zeros((nx, nx * T))
@@ -313,22 +312,12 @@ def solve_scvx(prob_dict, funcs, config):
         ou[:, k:k+1] = scale_u(warm_u[:, k:k+1], inv_S_u, c_u)
 
     # --- Asignar parametros fijos ---
-    prob_dict['tau'].value = tau_val
-    prob_dict['sqrt_tau'].value = sqrt_tau_val
-    prob_dict['lamb'].value = lamb_val
-    prob_dict['tau_lamb'].value = tau_val * lamb_val
     prob_dict['etta'].value = etta_val
-    prob_dict['S_x_scaling'].value = S_x
-    prob_dict['S_u_scaling'].value = S_u
-    prob_dict['c_x_scaling'].value = c_x
-    prob_dict['c_u_scaling'].value = c_u
     prob_dict['start_pos'].value = scale_x(config['start_pos'], inv_S_x, c_x)
     prob_dict['end_pos'].value = scale_x(config['end_pos'], inv_S_x, c_x)
-    prob_dict['ox_cvxpy'].value = ox.copy()
-    prob_dict['ou_cvxpy'].value = ou.copy()
-
-    for name, val in extra_vals.items():
-        prob_dict['extra_params'][name].value = val
+    for k in range(T + 1):
+        prob_dict['ox_params'][k].value = ox[:, k:k+1]
+        prob_dict['ou_params'][k].value = ou[:, k:k+1] if k < T else ou[:, T-1:T]
 
     # --- Loop SCVx ---
     history = []
@@ -371,14 +360,16 @@ def solve_scvx(prob_dict, funcs, config):
                 aux_D[:, nu*k:nu*(k+1)] = D_k
                 aux_z[:, k:k+1] = z_k
 
-        # 3. Asignar valores a parametros CVXPY
-        params['A_discrete'].value = aux_A.copy()
-        params['B_discrete'].value = aux_B.copy()
-        params['y_discrete'].value = aux_y.copy()
+        # 3. Asignar valores a parametros CVXPY (por paso)
+        for k in range(T):
+            prob_dict['A_params'][k].value = aux_A[:, nx*k:nx*(k+1)]
+            prob_dict['B_params'][k].value = aux_B[:, nu*k:nu*(k+1)]
+            prob_dict['y_params'][k].value = aux_y[:, k:k+1]
         if ng > 0:
-            params['C_discrete'].value = aux_C.copy()
-            params['D_discrete'].value = aux_D.copy()
-            params['z_discrete'].value = aux_z.copy()
+            for k in range(T + 1):
+                prob_dict['C_params'][k].value = aux_C[:, nx*k:nx*(k+1)]
+                prob_dict['D_params'][k].value = aux_D[:, nu*k:nu*(k+1)]
+                prob_dict['z_params'][k].value = aux_z[:, k:k+1]
 
         # 4. Resolver
         val = problem.solve(solver=solver_name, ignore_dpp=True)
@@ -442,8 +433,9 @@ def solve_scvx(prob_dict, funcs, config):
 
         # 8. Actualizar parametros CVXPY
         prob_dict['etta'].value = etta_val
-        prob_dict['ox_cvxpy'].value = ox.copy()
-        prob_dict['ou_cvxpy'].value = ou.copy()
+        for k in range(T + 1):
+            prob_dict['ox_params'][k].value = ox[:, k:k+1]
+            prob_dict['ou_params'][k].value = ou[:, k:k+1] if k < T else ou[:, T-1:T]
 
         if iteration >= 3:
             no_first_iterations = True
