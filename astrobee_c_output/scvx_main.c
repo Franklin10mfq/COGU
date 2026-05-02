@@ -1,29 +1,21 @@
 /*
- * proob.c  –  SCVx / COGU con solver CPG (CVXPYGEN + ECOS)
+ * scvx_main.c  —  SCVx loop generado por COGU pipeline
  *
- * Compilar (desde la carpeta ASTROBEE_TEMPLATE_C/):
- *   gcc -O0 -g -std=c99 -D_USE_MATH_DEFINES code_c_ZOH.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/src/cpg_solve.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/src/cpg_workspace.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/ecos.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/kkt.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/cone.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/spla.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/timer.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/preproc.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/splamm.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/ctrlc.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/equil.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/expcone.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/src/wright_omega.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/amd/src/*.c
- *       ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/ldl/src/ldl.c
- *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/include
- *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/include
- *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/SuiteSparse_config
- *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/amd/include
- *       -I ../Astrobee_SCVX_ECOS_T51_l2/c/solver_code/external/ldl/include
- *       -o astrobee_cogu -lm
+ * Dimensiones: NX=13, NU=6, NG=3, NP=18, T=30
+ *
+ * Compilar (desde el directorio de salida):
+ *   gcc -O0 -std=c99 -D_USE_MATH_DEFINES \
+ *       scvx_main.c dynamics.c cpg_compat.h \
+ *       solver/c/src/cpg_solve.c solver/c/src/cpg_workspace.c \
+ *       solver/c/solver_code/src/*.c \
+ *       solver/c/solver_code/external/amd/src/*.c \
+ *       solver/c/solver_code/external/ldl/src/ldl.c \
+ *       -I solver/c/include \
+ *       -I solver/c/solver_code/include \
+ *       -I solver/c/solver_code/external/amd/include \
+ *       -I solver/c/solver_code/external/ldl/include \
+ *       -I solver/c/solver_code/external/SuiteSparse_config \
+ *       -lm -o scvx_cogu
  */
 
 #include <stdio.h>
@@ -33,15 +25,15 @@
 #include <time.h>
 
 #include "cpg_workspace.h"
-#include "cpg_compat.h"   /* API adapter: stacked→per-timestep (T=30 solver) */
-#include "dynamics/dynamics.h"
+#include "cpg_compat.h"
+#include "dynamics.h"
 
 /* ─────────────────────────────────────────────────────────────────────────────
  * Dimensiones
  * ───────────────────────────────────────────────────────────────────────────*/
 #define STATES_SIZE   13
-#define INPUTS_SIZE    6
-#define N_OBS          3
+#define INPUTS_SIZE   6
+#define N_OBS         3
 #define DYN_PAR_SIZE  18
 
 #ifndef M_PI
@@ -91,16 +83,7 @@ static int mat_inv(const double *A,double *Ai,int n){
     for(int i=0;i<n;i++) for(int j=0;j<n;j++) Ai[i*n+j]=aug[i*2*n+n+j];
     free(aug); return 0;
 }
-static void cross3(const double *a,const double *b,double *c){
-    c[0]=a[1]*b[2]-a[2]*b[1];
-    c[1]=a[2]*b[0]-a[0]*b[2];
-    c[2]=a[0]*b[1]-a[1]*b[0];
-}
 
-/*
- * Convierte matriz row-major (ra x ca) a vector column-major.
- * CVXPY/NumPy usa column-major; el solver CPG espera ese orden.
- */
 static void to_colmaj(const double *M_row, double *M_col, int ra, int ca){
     for(int i=0;i<ra;i++)
         for(int j=0;j<ca;j++)
@@ -108,7 +91,7 @@ static void to_colmaj(const double *M_row, double *M_col, int ra, int ca){
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * Dinamica — delegada a dynamics/dynamics.h (generado por generate_c_functions)
+ * Dinamica — delegada a dynamics.h (generado por generate_c_functions)
  * ───────────────────────────────────────────────────────────────────────────*/
 static void f_SCVx(const double *hx,const double *hu,double t,const double *dp,double *fo){
     f_dynamics((double*)hx,(double*)hu,t,(double*)dp,fo);
@@ -282,7 +265,7 @@ static void rk4_step(const double *xk,const double *uk,double t,double dt,const 
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * SLERP y velocidad angular
+ * SLERP y velocidad angular (utiles para problemas de actitud)
  * ───────────────────────────────────────────────────────────────────────────*/
 static void slerp(const double *q1,const double *q2,int N,double *out){
     double qa[4],qb[4];
@@ -331,7 +314,7 @@ static double J_cost(const double *x,const double *u,int T,double tau,const doub
     for(int k=0;k<T;k++){
         const double *uk=u+k*mi; double n1=0,n2=0;
         for(int i=0;i<3;i++) n1+=uk[i]*uk[i];
-        for(int i=3;i<6;i++) n2+=uk[i]*uk[i];
+        for(int i=3;i<mi;i++) n2+=uk[i]*uk[i];
         cost+=tau*(n1+n2);
     }
     for(int k=0;k<T;k++){
@@ -360,10 +343,8 @@ static double now_ms(void){
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * main
+ * main — ADAPTAR al problema concreto (condiciones iniciales, dp[], escalado)
  * ───────────────────────────────────────────────────────────────────────────*/
-
-
 int main(void)
 {
     int T=30; double tf=200.0, tau_d=tf/T; int sN=20;
@@ -380,7 +361,7 @@ int main(void)
 
     double dp[DYN_PAR_SIZE]={
         0.1083,0.1083,0.1083, 0.01,0.02,0.01,
-        1.1,-0.5,1.0, 2.6,0.5,1.1, 4.0,1.6,1.2, 0.82,0.82,0.82
+        1.1,-0.5,1.0, 2.6,0.5,1.1, 4.0,1.6,1.2, 0.8,0.8,0.8
     };
 
     double acc_max=20.0/7.2*0.001, torq_max=100.0*1e-6;
@@ -404,7 +385,6 @@ int main(void)
     double iSx[STATES_SIZE*STATES_SIZE], iSu[INPUTS_SIZE*INPUTS_SIZE];
     mat_inv(Sx,iSx,ns); mat_inv(Su,iSu,mi);
 
-    /* COGU - mismos parametros que Python */
     int COGU_max=25;
     double rho0=0.0, rho1=0.1, rho2=0.7;
     double etta0=1e-8, etta1=10.0, beta_sh=2.0, beta_gr=2.0;
@@ -433,13 +413,11 @@ int main(void)
     for(int t=0;t<=T;t++) sc_x(ohx+t*ns,iSx,cx,ox+t*ns);
     for(int t=0;t<T;t++)  sc_u(ohu+t*mi,iSu,cu,ou+t*mi);
 
-    /* Parametros fijos del solver */
     cpg_update_vel_max(vel_max);
     cpg_update_omega_max(omega_max);
     cpg_update_acc_max(acc_max);
     cpg_update_torq_max(torq_max);
 
-    /* Sx y Su son diagonales: column-major == row-major, pero convertimos igual */
     {
         double Sx_cm[STATES_SIZE*STATES_SIZE];
         double Su_cm[INPUTS_SIZE*INPUTS_SIZE];
@@ -465,7 +443,7 @@ int main(void)
     int no_first=0, iter=1;
     double rho_i=0.0;
 
-    /* ── Bucle COGU ──────────────────────────────────────────────────────*/
+    /* ── Bucle SCVx ─────────────────────────────────────────────────────────*/
     for(int cogu=0;cogu<COGU_max;cogu++){
 
         double t_disc_0 = now_ms();
@@ -473,7 +451,6 @@ int main(void)
         for(int t=0;t<=T;t++) isc_x(ox+t*ns,Sx,cx,ohx+t*ns);
         for(int t=0;t<T;t++)  isc_u(ou+t*mi,Su,cu,ohu+t*mi);
 
-        /* Discretizacion → pasar al solver en column-major */
         for(int k=0;k<T;k++){
             double Phi[STATES_SIZE*STATES_SIZE];
             double G[STATES_SIZE*INPUTS_SIZE];
@@ -487,11 +464,6 @@ int main(void)
             to_colmaj(Phi,Phi_cm,ns,ns);
             to_colmaj(G,G_cm,ns,mi);
 
-            /*
-             * A_discrete es (ns x ns*T) en column-major.
-             * Bloque k ocupa columnas k*ns .. k*ns+ns-1.
-             * Elemento (fila i, col k*ns+j) → indice = i + (k*ns+j)*ns
-             */
             for(int j=0;j<ns;j++)
                 for(int i=0;i<ns;i++)
                     cpg_update_A_discrete(i+(k*ns+j)*ns, Phi_cm[j*ns+i]);
@@ -500,7 +472,6 @@ int main(void)
                 for(int i=0;i<ns;i++)
                     cpg_update_B_discrete(i+(k*mi+j)*ns, G_cm[j*ns+i]);
 
-            /* y_discrete es (ns x T) en column-major: col k → indices k*ns .. k*ns+ns-1 */
             for(int i=0;i<ns;i++)
                 cpg_update_y_discrete(k*ns+i, zv[i]);
         }
@@ -518,7 +489,6 @@ int main(void)
             to_colmaj(Co,Co_cm,N_OBS,ns);
             to_colmaj(Do,Do_cm,N_OBS,mi);
 
-            /* C_discrete es (N_OBS x ns*(T+1)) en column-major */
             for(int j=0;j<ns;j++)
                 for(int i=0;i<N_OBS;i++)
                     cpg_update_C_discrete(i+(k*ns+j)*N_OBS, Co_cm[j*N_OBS+i]);
@@ -527,7 +497,6 @@ int main(void)
                 for(int i=0;i<N_OBS;i++)
                     cpg_update_D_discrete(i+(k*mi+j)*N_OBS, Do_cm[j*N_OBS+i]);
 
-            /* z_discrete es (N_OBS x T+1) en column-major */
             for(int i=0;i<N_OBS;i++)
                 cpg_update_z_discrete(k*N_OBS+i, zo[i]);
         }
@@ -539,10 +508,6 @@ int main(void)
         cpg_update_tau_lamb(tau_d*lam);
         cpg_update_etta(etta);
 
-        /*
-         * ox_cvxpy es (ns x T+1) en column-major.
-         * Internamente ox[t*ns+i] → CPG espera indice i+t*ns.
-         */
         for(int t=0;t<=T;t++)
             for(int i=0;i<ns;i++)
                 cpg_update_ox_cvxpy(i+t*ns, ox[t*ns+i]);
@@ -551,20 +516,13 @@ int main(void)
             for(int i=0;i<mi;i++)
                 cpg_update_ou_cvxpy(i+t*mi, ou[t*mi+i]);
 
-        /* Resolver */
-        /* Resolver */
         double t_solve_0 = now_ms();
         cpg_solve();
         double t_solve_1 = now_ms();
-
         printf("Solver time [ms]:  %.6f\n", t_solve_1 - t_solve_0);
 
         double L_opt = CPG_Result.info->obj_val;
 
-        /*
-         * Leer solucion: CPG devuelve en column-major.
-         * x[i + t*ns] → x_opt[t*ns+i]
-         */
         for(int t=0;t<=T;t++)
             for(int i=0;i<ns;i++)
                 x_opt[t*ns+i] = CPG_Result.prim->x[i+t*ns];
@@ -597,11 +555,8 @@ int main(void)
         for(int i=0;i<N_OBS*(T+1);i++) vi_norm+=fabs(vi_opt[i]);
 
         printf("Iteration number:  %d  Etta:  %.15g  Rho:  ", iter, etta);
-        if(iter == 1){
-            printf("None\n");
-        } else {
-            printf("%.15g\n", rho_i);
-        }
+        if(iter == 1) printf("None\n");
+        else          printf("%.15g\n", rho_i);
 
         printf("L_SCVx_opt: %.15f J_SCVx_opt: %.15f oJ_SCVx: %.15f Norm_x_diff: %.15f \n\n",
             L_opt, J_opt, oJ, nd);
@@ -634,44 +589,7 @@ int main(void)
     for(int t=0;t<T;t++)  isc_u(ou+t*mi,Su,cu,uv+t*mi);
 
     printf("\n=== Trayectoria optima ===\n");
-    printf("Posicion final:    %.4f  %.4f  %.4f\n",xv[0+T*ns],xv[1+T*ns],xv[2+T*ns]);
-    printf("Velocidad final:   %.4f  %.4f  %.4f\n",xv[3+T*ns],xv[4+T*ns],xv[5+T*ns]);
-    printf("Cuaternion final:  %.4f  %.4f  %.4f  %.4f\n",
-           xv[6+T*ns],xv[7+T*ns],xv[8+T*ns],xv[9+T*ns]);
-
-    FILE *fp;
-    fp=fopen("COGU_Dev_Library/output/quaternion.csv","w"); fprintf(fp,"time,q0,q1,q2,q3\n");
-    for(int t=0;t<=T;t++) fprintf(fp,"%.4f,%.8f,%.8f,%.8f,%.8f\n",
-        tf*t/T,xv[6+t*ns],xv[7+t*ns],xv[8+t*ns],xv[9+t*ns]);
-    fclose(fp);
-    fp=fopen("COGU_Dev_Library/output/position.csv","w"); fprintf(fp,"time,x,y,z\n");
-    for(int t=0;t<=T;t++) fprintf(fp,"%.4f,%.8f,%.8f,%.8f\n",
-        tf*t/T,xv[0+t*ns],xv[1+t*ns],xv[2+t*ns]);
-    fclose(fp);
-    fp=fopen("COGU_Dev_Library/output/velocity.csv","w"); fprintf(fp,"time,vx,vy,vz\n");
-    for(int t=0;t<=T;t++) fprintf(fp,"%.4f,%.8f,%.8f,%.8f\n",
-        tf*t/T,xv[3+t*ns],xv[4+t*ns],xv[5+t*ns]);
-    fclose(fp);
-    fp=fopen("COGU_Dev_Library/output/ang_velocity.csv","w"); fprintf(fp,"time,wx,wy,wz\n");
-    for(int t=0;t<=T;t++) fprintf(fp,"%.4f,%.8f,%.8f,%.8f\n",
-        tf*t/T,xv[10+t*ns],xv[11+t*ns],xv[12+t*ns]);
-    fclose(fp);
-    fp=fopen("COGU_Dev_Library/output/ctrl_accel.csv","w"); fprintf(fp,"time,ax,ay,az\n");
-    for(int t=0;t<T;t++) fprintf(fp,"%.4f,%.8f,%.8f,%.8f\n",
-        tf*t/T,uv[0+t*mi],uv[1+t*mi],uv[2+t*mi]);
-    fclose(fp);
-    fp=fopen("COGU_Dev_Library/output/ctrl_torque.csv","w"); fprintf(fp,"time,taux,tauy,tauz\n");
-    for(int t=0;t<T;t++) fprintf(fp,"%.4f,%.8f,%.8f,%.8f\n",
-        tf*t/T,uv[3+t*mi],uv[4+t*mi],uv[5+t*mi]);
-    fclose(fp);
-    printf("\n=== Muestras de trayectoria ===\n");
-    for(int t=0; t<=T; t++){
-        printf("t=%.2f  x=%.4f  y=%.4f  z=%.4f  vx=%.4f  vy=%.4f  vz=%.4f\n",
-            tf*t/T,
-            xv[0+t*ns], xv[1+t*ns], xv[2+t*ns],
-            xv[3+t*ns], xv[4+t*ns], xv[5+t*ns]);
-}
-    printf("CSVs escritos.\n");
+    printf("Posicion final: %.4f  %.4f  %.4f\n",xv[0+T*ns],xv[1+T*ns],xv[2+T*ns]);
 
     free(ohx);free(ohu);free(ox);free(ou);free(qt);free(av);
     free(x_opt);free(u_opt);free(vc_opt);free(vi_opt);

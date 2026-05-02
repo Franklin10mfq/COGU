@@ -1,9 +1,11 @@
 import numpy as np
+import shutil
 from cvxpygen import cpg
 import importlib.util
 import tempfile
 import os
-from .codegen import generate_functions
+from .codegen import generate_functions, generate_c_functions
+from .template_filler import fill_scvx_template
 from .problem import build_problem
 from .solver import solve_scvx
 
@@ -20,7 +22,8 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
                      beta_sh=2.0, beta_gr=2.0,
                      e_tol=0.005, epsilon_stop=1e-5,
                      solver='ECOS', verbose=True,
-                     generate_c=False, c_output_dir="c_output"):
+                     generate_c=False, c_output_dir="c_output",
+                     solver_source_dir=None):
 # AGREGADOS GENERATE C & C OUTPUT DIR 
     """
     Resuelve un problema de trayectoria optima via SCVx.
@@ -115,27 +118,55 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
             state_bounds=state_bounds,
             control_bounds=control_bounds,
         )
-        # ── [D.5] Generar solver C con CVXPYgen (opcional) ──
+        # ── [D.5] Generar codigo C completo (opcional) ──
         if generate_c:
+            os.makedirs(c_output_dir, exist_ok=True)
+
+            # 1. Solver C via CVXPYgen (o copiar/reutilizar existente)
             solver_dir = os.path.join(c_output_dir, 'solver')
-            os.makedirs(solver_dir, exist_ok=True)
-            try:
-                cpg.generate_code(prob_dict['problem'], code_dir=solver_dir, solver='ECOS')
-            except MemoryError as e:
-                raise MemoryError(
-                    f"CVXPYgen: problema demasiado grande para CVXPY 1.8 DPP expansion "
-                    f"(T={T}, nx={nx}, nu={nu}). Usar T<=10 con nx<=6 para generar C. "
-                    f"Original: {e}"
-                ) from e
-            except (ModuleNotFoundError, Exception) as e:
-                # C files generated OK; Python wrapper compilation failed (CMake missing, etc.)
-                c_src = os.path.join(solver_dir, 'c', 'src')
-                if os.path.isdir(c_src):
-                    print(f"[CVXPYgen] C code generated at {solver_dir}/c/")
-                    print(f"[CVXPYgen] Python wrapper compilation failed: {e}")
-                    print("[CVXPYgen] Para compilar: instalar CMake y correr setup.py en solver/")
-                else:
-                    raise
+            cpg_solve_c = os.path.join(solver_dir, 'c', 'src', 'cpg_solve.c')
+
+            if solver_source_dir is not None:
+                # Copiar solver preexistente desde solver_source_dir
+                if os.path.isdir(solver_dir):
+                    shutil.rmtree(solver_dir)
+                shutil.copytree(solver_source_dir, solver_dir)
+                print(f"[CVXPYgen] Solver copiado desde {solver_source_dir}")
+            elif os.path.isfile(cpg_solve_c):
+                # Solver ya generado en c_output_dir — reutilizar
+                print(f"[CVXPYgen] Solver ya existe en {solver_dir}/c/ — omitiendo regeneracion")
+            else:
+                os.makedirs(solver_dir, exist_ok=True)
+                try:
+                    cpg.generate_code(prob_dict['problem'], code_dir=solver_dir, solver='ECOS')
+                except MemoryError as e:
+                    raise MemoryError(
+                        f"CVXPYgen: problema demasiado grande para CVXPY 1.8 DPP expansion "
+                        f"(T={T}, nx={nx}, nu={nu}). Pasar solver_source_dir con un solver "
+                        f"preexistente o generar con T<=10 y nx<=6. Original: {e}"
+                    ) from e
+                except (ModuleNotFoundError, Exception) as e:
+                    c_src = os.path.join(solver_dir, 'c', 'src')
+                    if os.path.isdir(c_src):
+                        print(f"[CVXPYgen] C code generated at {solver_dir}/c/")
+                        print(f"[CVXPYgen] Python wrapper compilation failed: {e}")
+                        print("[CVXPYgen] Para compilar: instalar CMake y correr setup.py en solver/")
+                    else:
+                        raise
+
+            # 2. Dinamica en C (dynamics.c + dynamics.h)
+            generate_c_functions(
+                states=states,
+                controls=controls,
+                dynamics=dynamics,
+                nonconvex_constraints=nonconvex_constraints,
+                dynamic_parameters=dynamic_parameters_sym,
+                output_dir=c_output_dir,
+            )
+
+            # 3. Loop SCVx C (scvx_main.c + cpg_compat.h)
+            np_ = len(dynamic_parameters_sym) if dynamic_parameters_sym else 0
+            fill_scvx_template(nx, nu, ng, np_, T, c_output_dir)
 
         # ── [E] Solve SCVx ──
         dyn_par = dynamic_parameters_val if dynamic_parameters_val is not None else np.array([])

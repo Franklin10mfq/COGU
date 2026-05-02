@@ -1,14 +1,16 @@
-# Compilar Astrobee T=30 desde COGU_Dev_Library
+# Compilar codigo generado por pipeline COGU en astrobee_c_output/
 # Correr desde: c:\Users\luiss\COGU\
+#
+# Rutas correctas segun CVXPYgen: solver/c/src/, solver/c/include/, etc.
 
 $env:PATH = "C:\msys64\ucrt64\bin;C:\msys64\usr\bin;" + $env:PATH
 
-$SOLVER   = "COGU_Dev_Library\c_output_t30\solver\c"
-$TEMPLATE = "COGU_Dev_Library\astrobee_t30"
+$OUT    = "astrobee_c_output"
+$SOLVER = "$OUT\solver\c"
 
 gcc -O0 -std=c99 -D_USE_MATH_DEFINES `
-    "$TEMPLATE\code_c_ZOH.c" `
-    "$TEMPLATE\dynamics\dynamics.c" `
+    "$OUT\scvx_main.c" `
+    "$OUT\dynamics.c" `
     "$SOLVER\src\cpg_solve.c" `
     "$SOLVER\src\cpg_workspace.c" `
     "$SOLVER\solver_code\src\ecos.c" `
@@ -36,18 +38,18 @@ gcc -O0 -std=c99 -D_USE_MATH_DEFINES `
     "$SOLVER\solver_code\external\amd\src\amd_preprocess.c" `
     "$SOLVER\solver_code\external\amd\src\amd_valid.c" `
     "$SOLVER\solver_code\external\ldl\src\ldl.c" `
+    -I "$OUT" `
     -I "$SOLVER\include" `
     -I "$SOLVER\solver_code\include" `
     -I "$SOLVER\solver_code\external\amd\include" `
     -I "$SOLVER\solver_code\external\ldl\include" `
     -I "$SOLVER\solver_code\external\SuiteSparse_config" `
-    -I "$TEMPLATE" `
-    -o "$TEMPLATE\astrobee_cogu_t30.exe" `
+    -o "$OUT\astrobee_cogu.exe" `
     -lm
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`n=== COMPILACION EXITOSA ===" -ForegroundColor Green
-    Write-Host "Ejecutable: $TEMPLATE\astrobee_cogu_t30.exe"
+    Write-Host "Ejecutable: $OUT\astrobee_cogu.exe"
 } else {
     Write-Host "`n=== ERROR DE COMPILACION (codigo $LASTEXITCODE) ===" -ForegroundColor Red
 }
