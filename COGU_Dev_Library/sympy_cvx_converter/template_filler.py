@@ -86,9 +86,53 @@ static inline void cpg_update_c_u_scaling(int idx, double val)  {{ (void)idx; (v
         fp.write(content)
 
 
-def fill_scvx_template(nx, nu, ng, np_, T, output_dir):
+def generate_cmakelists(output_dir, exe_name='cogu_scvx'):
     """
-    Genera scvx_main.c y cpg_compat.h en output_dir.
+    Genera CMakeLists.txt en output_dir.
+
+    Usa add_subdirectory(solver/c) para heredar cpg_include y cpg_src
+    de CVXPYgen, y agrega scvx_main.c + dynamics.c al ejecutable.
+
+    Parametros:
+        output_dir: directorio donde ya estan scvx_main.c, dynamics.c, solver/
+        exe_name:   nombre del ejecutable generado (default: cogu_scvx)
+    """
+    content = f"""\
+cmake_minimum_required(VERSION 3.10)
+project({exe_name} C)
+
+# Compilacion cruzada: pasar -DCMAKE_TOOLCHAIN_FILE=arm.cmake para ARM
+# Ejemplo: cmake -B build -DCMAKE_TOOLCHAIN_FILE=arm-none-eabi.cmake
+
+# Solver generado por CVXPYgen — expone cpg_include y cpg_src al scope padre
+add_subdirectory(solver/c)
+
+# Ejecutable principal
+add_executable({exe_name}
+    scvx_main.c
+    dynamics.c
+    ${{cpg_src}}
+)
+
+# Includes: raiz del output (cpg_compat.h, dynamics.h) + headers del solver
+target_include_directories({exe_name} PRIVATE
+    ${{CMAKE_CURRENT_SOURCE_DIR}}
+    ${{cpg_include}}
+)
+
+# Matematicas
+if(NOT MSVC)
+    target_link_libraries({exe_name} PRIVATE m)
+endif()
+"""
+    with open(os.path.join(output_dir, 'CMakeLists.txt'), 'w', encoding='utf-8') as fp:
+        fp.write(content)
+    print(f'[template_filler] CMakeLists.txt generado  (exe: {exe_name})')
+
+
+def fill_scvx_template(nx, nu, ng, np_, T, output_dir, exe_name='cogu_scvx'):
+    """
+    Genera scvx_main.c, cpg_compat.h y CMakeLists.txt en output_dir.
 
     Parametros:
         nx:         numero de estados
@@ -97,6 +141,7 @@ def fill_scvx_template(nx, nu, ng, np_, T, output_dir):
         np_:        numero de parametros dinamicos
         T:          numero de pasos de tiempo
         output_dir: directorio de salida (se crea si no existe)
+        exe_name:   nombre del ejecutable en CMakeLists.txt (default: cogu_scvx)
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -114,6 +159,8 @@ def fill_scvx_template(nx, nu, ng, np_, T, output_dir):
 
     generate_cpg_compat(nx, nu, ng, T,
                         os.path.join(output_dir, 'cpg_compat.h'))
+
+    generate_cmakelists(output_dir, exe_name=exe_name)
 
     print(f'[template_filler] scvx_main.c generado  (NX={nx}, NU={nu}, NG={ng}, NP={np_}, T={T})')
     print(f'[template_filler] cpg_compat.h generado')
