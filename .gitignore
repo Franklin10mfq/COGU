@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Binarios compilados
+*.exe
+*.o
+*.a
+
+# Outputs generados (se regeneran corriendo el exe)
+output/
+COGU_Dev_Library/output/*.csv
+
+# Entornos virtuales
+.venv/
+env/
