@@ -51,7 +51,7 @@ prob_dict = build_problem(
 )
 print(f"  -> build_problem OK ({time.time()-t0:.1f}s)")
 
-output_dir = "c_output_t30/solver"
+output_dir = "solver_t30/solver"
 os.makedirs(output_dir, exist_ok=True)
 
 print(f"\nCorriendo CVXPYgen (T={T}) ...")

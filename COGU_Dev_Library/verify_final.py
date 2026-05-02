@@ -132,7 +132,7 @@ warm_u = np.zeros((6, T))
 # =============================================================================
 C_OUTPUT = "COGU_Dev_Library/astrobee_c_output"
 # Solver preexistente generado en sesion anterior (evita MemoryError de CVXPYgen en T=30)
-SOLVER_SOURCE = "COGU_Dev_Library/c_output_t30/solver"
+SOLVER_SOURCE = "COGU_Dev_Library/references/solver_t30/solver"
 
 print("=" * 60)
 print("COGU pipeline -- Verificacion final")

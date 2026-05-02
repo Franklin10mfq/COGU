@@ -168,7 +168,7 @@ result = solve_trajectory(
     size_N=20,
     max_iter=25,
     generate_c=True,
-    c_output_dir="COGU_Dev_Library/c_output_t30",
+    c_output_dir="COGU_Dev_Library/references/solver_t30",
 )
 
 total = time.time() - t0
