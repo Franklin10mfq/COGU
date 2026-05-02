@@ -8,9 +8,10 @@ __pycache__/
 *.o
 *.a
 
-# Outputs generados (se regeneran corriendo el exe)
+# Outputs generados (se regeneran corriendo el exe o el pipeline)
 output/
 COGU_Dev_Library/output/*.csv
+COGU_Dev_Library/astrobee_c_output/
 
 # Entornos virtuales
 .venv/

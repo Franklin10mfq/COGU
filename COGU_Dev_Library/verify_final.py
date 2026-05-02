@@ -130,7 +130,7 @@ warm_u = np.zeros((6, T))
 # =============================================================================
 # 4. RESOLVER con generate_c=True en astrobee_c_output/
 # =============================================================================
-C_OUTPUT = "astrobee_c_output"
+C_OUTPUT = "COGU_Dev_Library/astrobee_c_output"
 # Solver preexistente generado en sesion anterior (evita MemoryError de CVXPYgen en T=30)
 SOLVER_SOURCE = "COGU_Dev_Library/c_output_t30/solver"
 

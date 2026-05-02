@@ -1,11 +1,9 @@
-# Compilar codigo generado por pipeline COGU en astrobee_c_output/
+# Compilar codigo generado por pipeline COGU en COGU_Dev_Library/astrobee_c_output/
 # Correr desde: c:\Users\luiss\COGU\
-#
-# Rutas correctas segun CVXPYgen: solver/c/src/, solver/c/include/, etc.
 
 $env:PATH = "C:\msys64\ucrt64\bin;C:\msys64\usr\bin;" + $env:PATH
 
-$OUT    = "astrobee_c_output"
+$OUT    = "COGU_Dev_Library\astrobee_c_output"
 $SOLVER = "$OUT\solver\c"
 
 gcc -O0 -std=c99 -D_USE_MATH_DEFINES `
