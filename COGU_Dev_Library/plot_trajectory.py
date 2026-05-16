@@ -1,12 +1,12 @@
 """
 plot_trajectory.py -- Graficador de trayectoria SCVx para Astrobee.
 
-Reproduce los 6 plots de estado/control del notebook de referencia
-(SCVx_official_template_cvxpy_cvxpygen_ZOH.ipynb) y agrega una
-animacion 3D interactiva (Plotly) con el cubo Astrobee y los obstaculos.
+Resuelve el problema de guiado usando la COGU_Dev_Library (sympy_cvx_converter)
+y grafica los resultados en el mismo formato de referencia que el notebook
+SCVx_official_template_cvxpy_cvxpygen_ZOH.ipynb (6 plots estado/control +
+animacion 3D Plotly). Los datos graficados provienen del solver de la libreria,
+no del notebook.
 
-Run desde c:/Users/luiss/COGU/:
-    python COGU_Dev_Library/plot_trajectory.py
 """
 
 import sys, os, time
@@ -174,7 +174,7 @@ time_x = np.linspace(0, tf, T+1)
 time_u = np.linspace(0, tf, T)
 
 # =============================================================================
-# 5. PLOTS MATPLOTLIB (6 figuras -- igual que Cell 46 del notebook)
+# 5. PLOTS MATPLOTLIB (6 figuras de estado/control)
 # =============================================================================
 plt.figure(1)
 plt.plot(time_x, x[6,:], label='q0')
@@ -227,7 +227,7 @@ plt.xlabel('Time [s]')
 plt.legend(); plt.grid(True); plt.tight_layout()
 
 # =============================================================================
-# 6. ANIMACION 3D PLOTLY (igual que Cell 47 del notebook)
+# 6. ANIMACION 3D PLOTLY (Astrobee + obstaculos)
 # =============================================================================
 def _create_cube(center, size, quaternion):
     half = size / 2.0
