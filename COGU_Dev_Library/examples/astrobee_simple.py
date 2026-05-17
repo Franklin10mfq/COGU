@@ -11,6 +11,7 @@ import sympy as sp
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from sympy_cvx_converter import solve_trajectory
+from sympy_cvx_converter.utils import slerp, angular_vel
 
 # ==============================================================================
 # 1. MODELO SYMPY (copiado del Cell 21 del template)
@@ -108,23 +109,6 @@ c_u = np.array([[-(10*acc_max)]]*3 + [[-(0.1*torq_max)]]*3)
 # ==============================================================================
 # 3. WARM START (del Cell 33 del template)
 # ==============================================================================
-
-def slerp(q1, q2, n):
-    dot = np.clip(np.dot(q1, q2), -1.0, 1.0)
-    if dot < 0: q2, dot = -q2, -dot
-    theta = np.arccos(dot)
-    if abs(theta) < 1e-6: return np.linspace(q1, q2, n)
-    return np.array([(np.cos(theta*t/( n-1)) - dot*np.sin(theta*t/(n-1))/np.sin(theta))*q1
-                     + np.sin(theta*t/(n-1))/np.sin(theta)*q2 for t in range(n)])
-
-from scipy.spatial.transform import Rotation as R
-def angular_vel(quats, dt):
-    rots = R.from_quat(quats)
-    w = [[0,0,0]]
-    for i in range(len(rots)-1):
-        w.append((rots[i+1]*rots[i].inv()).as_rotvec()/dt)
-    return np.array(w)
-
 tau_val = tf / T
 pos = np.column_stack([np.linspace(start_pos[i,0], end_pos[i,0], T+1) for i in range(3)]).T
 vel = np.zeros_like(pos)

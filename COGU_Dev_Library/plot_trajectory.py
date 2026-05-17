@@ -18,6 +18,7 @@ from scipy.spatial.transform import Rotation
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from sympy_cvx_converter import solve_trajectory
+from sympy_cvx_converter.utils import slerp, angular_vel
 
 # =============================================================================
 # 1. MODELO SYMPY (identico a verify_final.py)
@@ -110,28 +111,13 @@ c_u = np.array([[-(10*acc_max)]]*3 + [[-(0.1*torq_max)]]*3)
 # =============================================================================
 # 3. WARM START
 # =============================================================================
-def _slerp(qa, qb, n):
-    dot = np.clip(np.dot(qa, qb), -1.0, 1.0)
-    if dot < 0: qb, dot = -qb, -dot
-    theta = np.arccos(dot)
-    if abs(theta) < 1e-6: return np.linspace(qa, qb, n)
-    return np.array([(np.cos(theta*t/(n-1)) - dot*np.sin(theta*t/(n-1))/np.sin(theta))*qa
-                     + np.sin(theta*t/(n-1))/np.sin(theta)*qb for t in range(n)])
-
-def _angular_vel(quats, dt):
-    rots = Rotation.from_quat(quats)
-    w = [[0,0,0]]
-    for i in range(len(rots)-1):
-        w.append((rots[i+1]*rots[i].inv()).as_rotvec()/dt)
-    return np.array(w)
-
 tau_val = tf / T
 pos = np.column_stack([np.linspace(start_pos[i,0], end_pos[i,0], T+1) for i in range(3)]).T
 vel = np.zeros_like(pos)
 for t in range(1, T): vel[:, t] = (pos[:, t] - pos[:, t-1]) / tau_val
 vel[:, 0:1], vel[:, T:T+1] = start_pos[3:6], end_pos[3:6]
-quat = _slerp(start_pos[6:10,0], end_pos[6:10,0], T+1).T
-angvel = _angular_vel(quat.T, tau_val).T
+quat = slerp(start_pos[6:10,0], end_pos[6:10,0], T+1).T
+angvel = angular_vel(quat.T, tau_val).T
 
 warm_x = np.zeros((13, T+1))
 warm_x[0:3,:] = pos; warm_x[3:6,:] = vel; warm_x[6:10,:] = quat; warm_x[10:13,:] = angvel
