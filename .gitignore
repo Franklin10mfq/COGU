@@ -13,6 +13,8 @@ output/
 COGU_Dev_Library/output/*.csv
 COGU_Dev_Library/astrobee_c_output/
 COGU_Dev_Library/astrobee_c_output/build/
+COGU_Library_Enhanced/astrobee_c_output/
+COGU_Library_Enhanced/astrobee_c_output/build/
 
 # Entornos virtuales
 .venv/
