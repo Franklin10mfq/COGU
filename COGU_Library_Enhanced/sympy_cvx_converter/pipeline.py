@@ -246,7 +246,14 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
 
             # 3. Loop SCVx C (scvx_main.c + cpg_compat.h)
             np_ = len(dynamic_parameters_sym) if dynamic_parameters_sym else 0
-            fill_scvx_template(nx, nu, ng, np_, T, c_output_dir)
+            embed = {
+                'tf': tf, 'lam': lamb,
+                'start': start, 'end': end, 'dp': dyn_par,
+                'S_x': S_x, 'c_x': c_x, 'S_u': S_u, 'c_u': c_u,
+                'warm_x': warm_start_x, 'warm_u': warm_start_u,
+            }
+            fill_scvx_template(nx, nu, ng, np_, T, c_output_dir,
+                               cost_terms=cost_terms, embed=embed)
 
         return result
 

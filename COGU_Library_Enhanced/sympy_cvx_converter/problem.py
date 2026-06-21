@@ -1,50 +1,26 @@
 import cvxpy as cp
 import numpy as np
 
-
-DEFAULT_COST_TERMS = [
-    {
-        'kind':    'sumsq',
-        'var':     'u',
-        'slice':   slice(None),
-        'coeff':   'sqrt_tau',
-        'weight':  1.0,
-        'k_range': 'T',
-    }
-]
+from .cost_dsl import resolve_term
 
 
 def _build_cost_from_terms(cost_terms, vars_, T, sqrt_tau, tau_val, tau_lamb):
-    coeff_map = {
-        'sqrt_tau': sqrt_tau,
-        'tau':      float(tau_val),
-        'tau_lamb': tau_lamb,
-    }
+    coeff_map = {'sqrt_tau': sqrt_tau, 'tau': float(tau_val), 'tau_lamb': tau_lamb}
     cost = 0
     for term in cost_terms:
-        var_name = term['var']
-        v_full   = vars_[var_name]
-        slc      = term.get('slice', slice(None))
-        if slc is None:
-            slc = slice(None)
-        coeff_spec = term.get('coeff', 'sqrt_tau')
-        coeff  = coeff_map[coeff_spec] if isinstance(coeff_spec, str) else float(coeff_spec)
-        weight = float(term.get('weight', 1.0))
-        k_range = term.get('k_range')
-        if k_range is None:
-            k_range = 'T+1' if var_name == 'x' else 'T'
-        K = T + 1 if k_range == 'T+1' else T
-        kind = term['kind']
-        offset = term.get('offset')   # constante numpy (n,1) a restar, o None
+        rt = resolve_term(term)
+        v_full = vars_[rt.var]
+        coeff = coeff_map[rt.coeff] if isinstance(rt.coeff, str) else float(rt.coeff)
+        K = T + 1 if rt.k_range == 'T+1' else T
         for k in range(K):
-            v = v_full[slc, k:k+1]
-            expr = coeff * v if offset is None else coeff * (v - offset)
-            if kind == 'sumsq':
-                cost += weight * cp.sum_squares(expr)
-            elif kind == 'norm1':
-                cost += weight * cp.norm(expr, 1)
-            elif kind == 'norm2':
-                cost += weight * cp.norm(expr, 2)
+            v = v_full[rt.slc, k:k+1]
+            expr = coeff * v if rt.offset is None else coeff * (v - rt.offset)
+            if rt.kind == 'sumsq':
+                cost += rt.weight * cp.sum_squares(expr)
+            elif rt.kind == 'norm1':
+                cost += rt.weight * cp.norm(expr, 1)
+            elif rt.kind == 'norm2':
+                cost += rt.weight * cp.norm(expr, 2)
     return cost
 
 
@@ -148,7 +124,8 @@ def build_problem(nx, nu, T, ng=0,
     # COSTO — sqrt_tau y tau_lamb son floats, sin param x var
     # ==================================================
     if cost_terms is None:
-        cost_terms = DEFAULT_COST_TERMS
+        raise ValueError("cost_terms es obligatorio: declara el costo del problema "
+                         "(ej. [{'kind':'sumsq','var':'u','coeff':'sqrt_tau'}]).")
     cost = _build_cost_from_terms(cost_terms, {'u': u, 'x': x}, T, sqrt_tau, tau_val, tau_lamb)
     for k in range(T):
         cost += cp.norm(tau_lamb * vc[:, k:k+1], 1)   # SCVx penalty — always fixed

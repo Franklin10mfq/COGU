@@ -238,7 +238,8 @@ result = solve_trajectory(
     size_N=20,
     lamb=5000.0,
     max_iter=25,
-    generate_c=False,
+    generate_c=True,
+    c_output_dir="COGU_Library_Enhanced/birds_c_output",
 )
 
 total = time.time() - t0

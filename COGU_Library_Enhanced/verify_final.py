@@ -139,6 +139,10 @@ result = solve_trajectory(
     S_x=S_x, c_x=c_x, S_u=S_u, c_u=c_u,
     warm_start_x=warm_x,
     warm_start_u=warm_u,
+    cost_terms=[
+        {'kind': 'sumsq', 'var': 'u', 'slice': slice(None), 'coeff': 'sqrt_tau',
+         'weight': 1.0, 'k_range': 'T'},
+    ],
     state_bounds=[
         (slice(3,6), 'norm2', vel_max),
         (slice(10,13), 'norm2', omega_max),

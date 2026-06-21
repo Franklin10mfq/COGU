@@ -265,45 +265,6 @@ static void rk4_step(const double *xk,const double *uk,double t,double dt,const 
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * SLERP y velocidad angular (utiles para problemas de actitud)
- * ───────────────────────────────────────────────────────────────────────────*/
-static void slerp(const double *q1,const double *q2,int N,double *out){
-    double qa[4],qb[4];
-    memcpy(qa,q1,32); memcpy(qb,q2,32);
-    double dot=0;
-    for(int i=0;i<4;i++) dot+=qa[i]*qb[i];
-    if(dot<0){for(int i=0;i<4;i++) qb[i]=-qb[i]; dot=-dot;}
-    if(dot>1) dot=1;
-    double th0=acos(dot);
-    for(int s=0;s<N;s++){
-        double t=(N>1)?(double)s/(N-1):0.0;
-        if(fabs(th0)<1e-6){
-            for(int i=0;i<4;i++) out[s*4+i]=(1-t)*qa[i]+t*qb[i];
-        } else {
-            double st0=sin(th0),th=th0*t;
-            double s0=cos(th)-dot*sin(th)/st0, s1=sin(th)/st0;
-            for(int i=0;i<4;i++) out[s*4+i]=s0*qa[i]+s1*qb[i];
-        }
-    }
-}
-
-static void ang_vel(const double *q,int N,double dt,double *w){
-    for(int i=0;i<3;i++) w[i]=0;
-    for(int k=0;k<N-1;k++){
-        const double *qc=q+k*4,*qn=q+(k+1)*4;
-        double c0=qc[0],c1=-qc[1],c2=-qc[2],c3=-qc[3];
-        double d0=c0*qn[0]-c1*qn[1]-c2*qn[2]-c3*qn[3];
-        double d1=c0*qn[1]+c1*qn[0]+c2*qn[3]-c3*qn[2];
-        double d2=c0*qn[2]-c1*qn[3]+c2*qn[0]+c3*qn[1];
-        double d3=c0*qn[3]+c1*qn[2]-c2*qn[1]+c3*qn[0];
-        double vn=sqrt(d1*d1+d2*d2+d3*d3),ang=2*atan2(vn,d0);
-        double *wk=w+(k+1)*3;
-        if(vn>1e-12){wk[0]=(ang/vn)*d1/dt;wk[1]=(ang/vn)*d2/dt;wk[2]=(ang/vn)*d3/dt;}
-        else{wk[0]=wk[1]=wk[2]=0;}
-    }
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
  * Funcion de costo J
  * ───────────────────────────────────────────────────────────────────────────*/
 static double J_cost(const double *x,const double *u,int T,double tau,const double *dp,
@@ -311,12 +272,9 @@ static double J_cost(const double *x,const double *u,int T,double tau,const doub
                      const double *Su,const double *cu,double tf){
     int ns=STATES_SIZE,mi=INPUTS_SIZE;
     double cost=0;
-    for(int k=0;k<T;k++){
-        const double *uk=u+k*mi; double n1=0,n2=0;
-        for(int i=0;i<3;i++) n1+=uk[i]*uk[i];
-        for(int i=3;i<mi;i++) n2+=uk[i]*uk[i];
-        cost+=tau*(n1+n2);
-    }
+    /* ─ costo del usuario — generado desde cost_terms (Fase 5) ─ */
+{USER_COST}
+    /* ─ defect/vc penalty — infraestructura SCVx (fijo) ─ */
     for(int k=0;k<T;k++){
         double xn[STATES_SIZE],xk1n[STATES_SIZE],def[STATES_SIZE];
         rk4_step(x+k*ns,u+k*mi,(double)k/T*tf,tau,dp,Sx,cx,Su,cu,xn);
@@ -324,6 +282,7 @@ static double J_cost(const double *x,const double *u,int T,double tau,const doub
         for(int i=0;i<ns;i++) def[i]=xk1n[i]-xn[i];
         cost+=tau*vec_norm1(def,ns)*lam;
     }
+#if N_OBS > 0
     for(int k=0;k<=T;k++){
         double xkn[STATES_SIZE],ukn[INPUTS_SIZE],gv[N_OBS];
         isc_x(x+k*ns,Sx,cx,xkn);
@@ -335,6 +294,7 @@ static double J_cost(const double *x,const double *u,int T,double tau,const doub
             cost+=tau*fabs(lam*v);
         }
     }
+#endif
     return cost;
 }
 
@@ -347,40 +307,22 @@ static double now_ms(void){
  * ───────────────────────────────────────────────────────────────────────────*/
 int main(void)
 {
-    int T={T}; double tf=200.0, tau_d=tf/T; int sN=20;
+    int T={T}; int sN=20;
     int ns=STATES_SIZE, mi=INPUTS_SIZE;
 
-    /* Condiciones de frontera */
-    double sr[3]={0.0,-1.0,1.0},   er[3]={5.0,2.0,1.6};
-    double sv[3]={0.001,-0.002,0.0},ev[3]={0,0,0};
-    double sq[4]={0,1,0,0},         eq[4]={0,0,1,0};
+    /* ─ Datos del problema embebidos (generados desde Python — Fase 6) ─ */
+{EMBEDDED_DATA}
+    double tau_d=tf/T;
 
-    double start_pos[STATES_SIZE]={0}, end_pos[STATES_SIZE]={0};
-    for(int i=0;i<3;i++){start_pos[i]=sr[i];start_pos[3+i]=sv[i];end_pos[i]=er[i];end_pos[3+i]=ev[i];}
-    for(int i=0;i<4;i++){start_pos[6+i]=sq[i];end_pos[6+i]=eq[i];}
+    /* Copiar datos const a buffers de trabajo (mutables) */
+    double dp[DYN_PAR_SIZE];             for(int i=0;i<DYN_PAR_SIZE;i++) dp[i]=_dp[i];
+    double Sx[STATES_SIZE*STATES_SIZE];  for(int i=0;i<ns*ns;i++) Sx[i]=_Sx[i];
+    double Su[INPUTS_SIZE*INPUTS_SIZE];  for(int i=0;i<mi*mi;i++) Su[i]=_Su[i];
+    double cx[STATES_SIZE];              for(int i=0;i<ns;i++) cx[i]=_cx[i];
+    double cu[INPUTS_SIZE];              for(int i=0;i<mi;i++) cu[i]=_cu[i];
 
-    double dp[DYN_PAR_SIZE]={
-        0.1083,0.1083,0.1083, 0.01,0.02,0.01,
-        1.1,-0.5,1.0, 2.6,0.5,1.1, 4.0,1.6,1.2, 0.8,0.8,0.8
-    };
-
-    double acc_max=20.0/7.2*0.001, torq_max=100.0*1e-6;
-    double vel_max=5.0, omega_max=5.0*M_PI/180.0;
-
-    /* Matrices de escalado */
-    double Su[INPUTS_SIZE*INPUTS_SIZE]; mat_zero(Su,mi*mi);
-    Su[0*mi+0]=Su[1*mi+1]=Su[2*mi+2]=2*(10*acc_max);
-    Su[3*mi+3]=Su[4*mi+4]=Su[5*mi+5]=2*(0.1*torq_max);
-    double cu[INPUTS_SIZE]={-(10*acc_max),-(10*acc_max),-(10*acc_max),
-                             -(0.1*torq_max),-(0.1*torq_max),-(0.1*torq_max)};
-
-    double Sx[STATES_SIZE*STATES_SIZE]; mat_zero(Sx,ns*ns);
-    Sx[0*ns+0]=Sx[1*ns+1]=Sx[2*ns+2]=2*30;
-    Sx[3*ns+3]=Sx[4*ns+4]=Sx[5*ns+5]=2*vel_max;
-    Sx[6*ns+6]=Sx[7*ns+7]=Sx[8*ns+8]=Sx[9*ns+9]=2;
-    Sx[10*ns+10]=Sx[11*ns+11]=Sx[12*ns+12]=2*(0.1*omega_max);
-    double cx[STATES_SIZE]={-30,-30,-30,-vel_max,-vel_max,-vel_max,
-                             -1,-1,-1,-1,-(0.1*omega_max),-(0.1*omega_max),-(0.1*omega_max)};
+    double start_pos[STATES_SIZE], end_pos[STATES_SIZE];
+    for(int i=0;i<ns;i++){ start_pos[i]=_start[i]; end_pos[i]=_end[i]; }
 
     double iSx[STATES_SIZE*STATES_SIZE], iSu[INPUTS_SIZE*INPUTS_SIZE];
     mat_inv(Sx,iSx,ns); mat_inv(Su,iSu,mi);
@@ -388,35 +330,18 @@ int main(void)
     int COGU_max=25;
     double rho0=0.0, rho1=0.1, rho2=0.7;
     double etta0=1e-8, etta1=10.0, beta_sh=2.0, beta_gr=2.0;
-    double lam=1000.0, etta=1.0, e_tol=0.005, eps_stop=1e-5;
+    double etta=1.0, e_tol=0.005, eps_stop=1e-5;
 
-    /* Trayectoria inicial */
+    /* Trayectoria inicial — warm start embebido (time-major, mismo layout que ohx) */
     double *ohx=(double*)calloc(ns*(T+1),sizeof(double));
     double *ohu=(double*)calloc(mi*T,    sizeof(double));
-    for(int t=0;t<=T;t++){
-        double a=(double)t/T;
-        for(int i=0;i<3;i++) ohx[i+t*ns]=(1-a)*sr[i]+a*er[i];
-    }
-    for(int t=1;t<T;t++)
-        for(int i=0;i<3;i++)
-            ohx[(3+i)+t*ns]=(ohx[i+t*ns]-ohx[i+(t-1)*ns])/tau_d;
-    for(int i=0;i<3;i++){ohx[(3+i)+0*ns]=sv[i]; ohx[(3+i)+T*ns]=ev[i];}
-    double *qt=(double*)malloc((T+1)*4*sizeof(double));
-    slerp(sq,eq,T+1,qt);
-    for(int t=0;t<=T;t++) for(int i=0;i<4;i++) ohx[(6+i)+t*ns]=qt[t*4+i];
-    double *av=(double*)calloc((T+1)*3,sizeof(double));
-    ang_vel(qt,T+1,tau_d,av);
-    for(int t=0;t<=T;t++) for(int i=0;i<3;i++) ohx[(10+i)+t*ns]=av[t*3+i];
+    for(int i=0;i<ns*(T+1);i++) ohx[i]=_warm_x[i];
+    for(int i=0;i<mi*T;i++)     ohu[i]=_warm_u[i];
 
     double *ox=(double*)malloc(ns*(T+1)*sizeof(double));
     double *ou=(double*)malloc(mi*T*    sizeof(double));
     for(int t=0;t<=T;t++) sc_x(ohx+t*ns,iSx,cx,ox+t*ns);
     for(int t=0;t<T;t++)  sc_u(ohu+t*mi,iSu,cu,ou+t*mi);
-
-    cpg_update_vel_max(vel_max);
-    cpg_update_omega_max(omega_max);
-    cpg_update_acc_max(acc_max);
-    cpg_update_torq_max(torq_max);
 
     {
         double Sx_cm[STATES_SIZE*STATES_SIZE];
@@ -476,6 +401,7 @@ int main(void)
                 cpg_update_y_discrete(k*ns+i, zv[i]);
         }
 
+#if N_OBS > 0
         for(int k=0;k<=T;k++){
             double Co[N_OBS*STATES_SIZE];
             double Do[N_OBS*INPUTS_SIZE];
@@ -500,6 +426,7 @@ int main(void)
             for(int i=0;i<N_OBS;i++)
                 cpg_update_z_discrete(k*N_OBS+i, zo[i]);
         }
+#endif
 
         double t_disc_1 = now_ms();
         printf("Discretization time [ms]:  %.6f\n", t_disc_1 - t_disc_0);
@@ -535,9 +462,11 @@ int main(void)
             for(int i=0;i<ns;i++)
                 vc_opt[t*ns+i] = CPG_Result.prim->vc[i+t*ns];
 
+#if N_OBS > 0
         for(int t=0;t<=T;t++)
             for(int i=0;i<N_OBS;i++)
                 vi_opt[t*N_OBS+i] = CPG_Result.prim->vi[i+t*N_OBS];
+#endif
 
         double J_opt = J_cost(x_opt,u_opt,T,tau_d,dp,lam,Sx,cx,Su,cu,tf);
         double oJ    = J_cost(ox,   ou,   T,tau_d,dp,lam,Sx,cx,Su,cu,tf);
@@ -589,9 +518,11 @@ int main(void)
     for(int t=0;t<T;t++)  isc_u(ou+t*mi,Su,cu,uv+t*mi);
 
     printf("\n=== Trayectoria optima ===\n");
-    printf("Posicion final: %.4f  %.4f  %.4f\n",xv[0+T*ns],xv[1+T*ns],xv[2+T*ns]);
+    printf("Estado final:");
+    for(int i=0;i<ns;i++) printf("  %.4f",xv[i+T*ns]);
+    printf("\n");
 
-    free(ohx);free(ohu);free(ox);free(ou);free(qt);free(av);
+    free(ohx);free(ohu);free(ox);free(ou);
     free(x_opt);free(u_opt);free(vc_opt);free(vi_opt);
     free(xv);free(uv);
     return 0;

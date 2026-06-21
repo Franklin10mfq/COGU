@@ -3,6 +3,8 @@ import re
 import sympy as sp
 import numpy as np
 
+from .cost_dsl import resolve_term
+
 
 # ==========================================
 # REEMPLAZO DE VARIABLES EN STRINGS
@@ -215,6 +217,114 @@ def _matrix_to_c_assignments(matrix, state_params, control_params, dynamic_param
             expr_str = _replace_variables_c(expr_str, state_params, control_params, dynamic_params)
             lines.append(f"    out[{idx}] = {expr_str};")
     return "\n".join(lines)
+
+
+def generate_c_user_cost(cost_terms, nx, nu):
+    """
+    Genera el bloque C del costo del usuario a partir de cost_terms.
+
+    Tercera materializacion del mismo DSL: espejo de _build_cost_from_terms
+    (CVXPY, problem.py) y eval_user_cost (numpy, solver.py).
+
+    El codigo generado asume en scope las variables C:
+        x  (estados, stride ns=STATES_SIZE)
+        u  (controles, stride mi=INPUTS_SIZE)
+        T, tau, lam, cost (acumulador)
+    y declara sqrt_tau / tau_lamb solo si algun termino los usa.
+
+    Retorna un string C (a insertar en J_cost vía el placeholder {USER_COST}).
+    """
+    coeff_c = {'sqrt_tau': 'sqrt_tau', 'tau': 'tau', 'tau_lamb': 'tau_lamb'}
+    resolved = [resolve_term(t) for t in cost_terms]
+
+    # Declarar solo los coeficientes string que se usan (evita warnings unused)
+    used = {rt.coeff for rt in resolved if isinstance(rt.coeff, str)}
+    lines = []
+    if 'sqrt_tau' in used:
+        lines.append('    double sqrt_tau=sqrt(tau);')
+    if 'tau_lamb' in used:
+        lines.append('    double tau_lamb=tau*lam;')
+
+    off_idx = 0
+    for rt in resolved:
+        arr, stride, dim = ('u', 'mi', nu) if rt.var == 'u' else ('x', 'ns', nx)
+        lo = 0 if rt.slc.start is None else rt.slc.start
+        hi = dim if rt.slc.stop is None else rt.slc.stop
+        coeff = coeff_c[rt.coeff] if isinstance(rt.coeff, str) else repr(float(rt.coeff))
+        weight = repr(rt.weight)
+        kcond = 'k<=T' if rt.k_range == 'T+1' else 'k<T'
+
+        if rt.offset is not None:
+            off = np.asarray(rt.offset, dtype=float).reshape(-1)
+            off_name = f'_off{off_idx}'
+            off_idx += 1
+            off_vals = ','.join(repr(float(v)) for v in off)
+            lines.append(f'    static const double {off_name}[]={{{off_vals}}};')
+            e_expr = f'{coeff}*({arr}k[i]-{off_name}[i-{lo}])'
+        else:
+            e_expr = f'{coeff}*{arr}k[i]'
+
+        accum = 's+=e*e;' if rt.kind in ('sumsq', 'norm2') else 's+=fabs(e);'
+        lines.append(f'    for(int k=0;{kcond};k++){{')
+        lines.append(f'        const double*{arr}k={arr}+k*{stride}; double s=0;')
+        lines.append(f'        for(int i={lo};i<{hi};i++){{ double e={e_expr}; {accum} }}')
+        if rt.kind == 'norm2':
+            lines.append(f'        cost+={weight}*sqrt(s);')
+        else:   # sumsq, norm1
+            lines.append(f'        cost+={weight}*s;')
+        lines.append('    }')
+
+    return '\n'.join(lines)
+
+
+def _c_array(name, flat_values):
+    """Declara un array C const: 'static const double name[]={...};'"""
+    body = ','.join(repr(float(v)) for v in flat_values)
+    return f'    static const double {name}[]={{{body}}};'
+
+
+def generate_c_embedded_data(embed, nx, nu, T):
+    """
+    Genera el bloque C de datos del problema embebidos (Fase 6).
+
+    `embed` es un dict con (todo SIN escalar, valores que el usuario pasa en Python):
+        tf, lam (escalares); start, end (nx,1); dp (np,);
+        S_x (nx,nx), c_x (nx,1), S_u (nu,nu), c_u (nu,1);
+        warm_x (nx,T+1), warm_u (nu,T).
+
+    Layouts (deben coincidir con el uso del template):
+        S_x/S_u row-major (Sx[i*ns+j]); warm time-major (ohx[i+t*ns]).
+
+    Retorna un string C (declaraciones a insertar vía {EMBEDDED_DATA}).
+    """
+    start = np.asarray(embed['start'], dtype=float).reshape(-1)
+    end   = np.asarray(embed['end'],   dtype=float).reshape(-1)
+    dp    = np.asarray(embed['dp'],    dtype=float).reshape(-1)
+    Sx    = np.asarray(embed['S_x'],   dtype=float)
+    cx    = np.asarray(embed['c_x'],   dtype=float).reshape(-1)
+    Su    = np.asarray(embed['S_u'],   dtype=float)
+    cu    = np.asarray(embed['c_u'],   dtype=float).reshape(-1)
+    wx    = np.asarray(embed['warm_x'], dtype=float)   # (nx, T+1)
+    wu    = np.asarray(embed['warm_u'], dtype=float)   # (nu, T)
+
+    # warm en layout time-major: idx = i + t*ns  ->  recorrer t, luego i
+    wx_tm = [wx[i, t] for t in range(T + 1) for i in range(nx)]
+    wu_tm = [wu[i, t] for t in range(T)     for i in range(nu)]
+
+    lines = [
+        f'    double tf={repr(float(embed["tf"]))};',
+        f'    double lam={repr(float(embed["lam"]))};',
+        _c_array('_start', start),
+        _c_array('_end',   end),
+        _c_array('_dp',    dp),
+        _c_array('_Sx',    Sx.reshape(-1)),   # row-major
+        _c_array('_cx',    cx),
+        _c_array('_Su',    Su.reshape(-1)),   # row-major
+        _c_array('_cu',    cu),
+        _c_array('_warm_x', wx_tm),
+        _c_array('_warm_u', wu_tm),
+    ]
+    return '\n'.join(lines)
 
 
 # ==========================================
