@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\franklin\Documents\Kyutech\githubs\github_COGU\COGU_algorithms\Astrobee_template\Astrobee_SCVX_ECOS_ZOH_T51_l2\c\build\CMakeFiles\65ab4851c8cd0ec7da1564e1f9bc0ae2\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{E446B093-80E2-3B53-B099-AF1E3A5BDC66}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
