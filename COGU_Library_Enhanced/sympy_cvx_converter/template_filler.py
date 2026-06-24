@@ -1,5 +1,7 @@
 import os
 
+from .codegen import generate_c_user_cost, generate_c_embedded_data
+
 _TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'templates', 'scvx_loop_template.c')
 
 
@@ -45,10 +47,6 @@ def generate_cpg_compat(nx, nu, ng, T, output_path):
 /* Parametros horneados como constantes — no-op */
 static inline void cpg_update_sqrt_tau(double val)              {{ (void)val; }}
 static inline void cpg_update_tau_lamb(double val)              {{ (void)val; }}
-static inline void cpg_update_vel_max(double val)               {{ (void)val; }}
-static inline void cpg_update_omega_max(double val)             {{ (void)val; }}
-static inline void cpg_update_acc_max(double val)               {{ (void)val; }}
-static inline void cpg_update_torq_max(double val)              {{ (void)val; }}
 static inline void cpg_update_S_x_scaling(int idx, double val)  {{ (void)idx; (void)val; }}
 static inline void cpg_update_c_x_scaling(int idx, double val)  {{ (void)idx; (void)val; }}
 static inline void cpg_update_S_u_scaling(int idx, double val)  {{ (void)idx; (void)val; }}
@@ -130,7 +128,8 @@ endif()
     print(f'[template_filler] CMakeLists.txt generado  (exe: {exe_name})')
 
 
-def fill_scvx_template(nx, nu, ng, np_, T, output_dir, exe_name='cogu_scvx'):
+def fill_scvx_template(nx, nu, ng, np_, T, output_dir, cost_terms=None, embed=None,
+                       exe_name='cogu_scvx'):
     """
     Genera scvx_main.c, cpg_compat.h y CMakeLists.txt en output_dir.
 
@@ -141,6 +140,10 @@ def fill_scvx_template(nx, nu, ng, np_, T, output_dir, exe_name='cogu_scvx'):
         np_:        numero de parametros dinamicos
         T:          numero de pasos de tiempo
         output_dir: directorio de salida (se crea si no existe)
+        cost_terms: DSL del costo (obligatorio aguas arriba). Genera el cuerpo
+                    de J_cost en C (placeholder {USER_COST}).
+        embed:      dict con datos del problema a embeber en C (placeholder {EMBEDDED_DATA}):
+                    tf, lam, start, end, dp, S_x, c_x, S_u, c_u, warm_x, warm_u.
         exe_name:   nombre del ejecutable en CMakeLists.txt (default: cogu_scvx)
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -148,6 +151,8 @@ def fill_scvx_template(nx, nu, ng, np_, T, output_dir, exe_name='cogu_scvx'):
     with open(_TEMPLATE_PATH, 'r', encoding='utf-8') as fp:
         content = fp.read()
 
+    content = content.replace('{USER_COST}', generate_c_user_cost(cost_terms, nx, nu))
+    content = content.replace('{EMBEDDED_DATA}', generate_c_embedded_data(embed, nx, nu, T))
     content = content.replace('{NX}', str(nx))
     content = content.replace('{NU}', str(nu))
     content = content.replace('{NG}', str(ng))

@@ -68,6 +68,7 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
                      S_x=None, c_x=None, S_u=None, c_u=None,
                      warm_start_x=None, warm_start_u=None,
                      state_bounds=None, control_bounds=None,
+                     cost_terms=None,
                      size_N=20, lamb=1000.0, max_iter=25,
                      rho0=0.0, rho1=0.1, rho2=0.7,
                      etta0=1e-8, etta1=10.0, etta_init=1.0,
@@ -102,8 +103,10 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
         S_x, c_x, S_u, c_u:   matrices de escalado (default: identidad)
         warm_start_x:          trayectoria inicial estados (nx, T+1)
         warm_start_u:          trayectoria inicial controles (nu, T)
-        state_bounds:          lista de (slice, 'norm1'|'norm2'|'norminf', limit)
-        control_bounds:        lista de (slice, 'norm1'|'norm2'|'norminf', limit)
+        state_bounds:          lista de tuples (slice, 'norm1'|'norm2'|'norminf', limit)
+                               o dicts {'kind':'norm'|'box', 'slice':..., ...}
+        control_bounds:        lista de tuples (slice, 'norm1'|'norm2'|'norminf', limit)
+                               o dicts {'kind':'norm'|'box', 'slice':..., ...}
         generate_c:            si True, genera C tras un solve Python exitoso
         c_output_dir:          carpeta destino del codigo C
         solver_source_dir:     si se da, copia un solver preexistente en vez de
@@ -176,6 +179,7 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
             S_x=S_x, c_x=c_x, S_u=S_u, c_u=c_u,
             state_bounds=state_bounds,
             control_bounds=control_bounds,
+            cost_terms=cost_terms,
         )
         prob_dict = build_problem(**build_kwargs)
 
@@ -242,7 +246,14 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
 
             # 3. Loop SCVx C (scvx_main.c + cpg_compat.h)
             np_ = len(dynamic_parameters_sym) if dynamic_parameters_sym else 0
-            fill_scvx_template(nx, nu, ng, np_, T, c_output_dir)
+            embed = {
+                'tf': tf, 'lam': lamb,
+                'start': start, 'end': end, 'dp': dyn_par,
+                'S_x': S_x, 'c_x': c_x, 'S_u': S_u, 'c_u': c_u,
+                'warm_x': warm_start_x, 'warm_u': warm_start_u,
+            }
+            fill_scvx_template(nx, nu, ng, np_, T, c_output_dir,
+                               cost_terms=cost_terms, embed=embed)
 
         return result
 

@@ -1,6 +1,7 @@
 import numpy as np
 from .scaling import (scale_x, scale_u, inv_scale_x, inv_scale_u,
                       scale_A, scale_B, scale_y, scale_C, scale_D, scale_z)
+from .cost_dsl import resolve_term
 
 
 # ==================================================
@@ -159,19 +160,45 @@ def rk4_step(xk_scaled, uk_scaled, t, dt, dyn_par, f_func,
 # COSTO REAL J_SCVx (Cell 42 del template)
 # ==================================================
 
+def eval_user_cost(cost_terms, x, u, T, sqrt_tau, tau_val, tau_lamb):
+    """
+    Evalua el costo del usuario en numpy — espejo numerico de
+    _build_cost_from_terms (problem.py), que lo construye en CVXPY.
+    x, u: trayectorias ESCALADAS (numpy). Misma fuente de verdad (cost_terms).
+    """
+    coeff_map = {'sqrt_tau': sqrt_tau, 'tau': float(tau_val), 'tau_lamb': tau_lamb}
+    var_map = {'u': u, 'x': x}
+    cost = 0.0
+    for term in cost_terms:
+        rt = resolve_term(term)
+        v_full = var_map[rt.var]
+        coeff = coeff_map[rt.coeff] if isinstance(rt.coeff, str) else float(rt.coeff)
+        K = T + 1 if rt.k_range == 'T+1' else T
+        for k in range(K):
+            vec = v_full[rt.slc, k:k+1]
+            expr = coeff * vec if rt.offset is None else coeff * (vec - rt.offset)
+            if rt.kind == 'sumsq':
+                cost += rt.weight * np.linalg.norm(expr) ** 2
+            elif rt.kind == 'norm1':
+                cost += rt.weight * np.linalg.norm(expr, ord=1)
+            elif rt.kind == 'norm2':
+                cost += rt.weight * np.linalg.norm(expr, ord=2)
+    return cost
+
+
 def compute_J(x, u, T, tau, lamb, dyn_par, ng,
-              f_func, g_func, S_x, c_x, S_u, c_u, tf):
+              f_func, g_func, S_x, c_x, S_u, c_u, tf, cost_terms=None):
     """
     Real SCVx cost evaluated with actual dynamics (not linearization).
     x, u: SCALED trajectories (numpy arrays).
+    cost_terms: DSL del costo del usuario (mismo que build_problem).
     Returns scalar cost.
     """
+    sqrt_tau = tau ** 0.5
+    tau_lamb = tau * lamb
 
-    cost = 0.0
-
-    for k in range(T):
-        # Control effort: tau * ||u_k||_2^2
-        cost += tau * np.linalg.norm(u[:, k:k+1]) ** 2
+    # Costo del usuario (control, tracking, etc.) desde el DSL
+    cost = eval_user_cost(cost_terms, x, u, T, sqrt_tau, tau, tau_lamb)
 
     for k in range(T):
         # Defect: difference between propagated and actual next state
@@ -246,6 +273,7 @@ def solve_scvx(prob_dict, funcs, config):
     nu = prob_dict['nu']
     ng = prob_dict['ng']
     T = prob_dict['T']
+    cost_terms = prob_dict.get('cost_terms')
 
     # --- Funciones code-gen ---
     f_func = funcs['f']
@@ -379,9 +407,9 @@ def solve_scvx(prob_dict, funcs, config):
         # 5. Evaluar costos
         L_SCVx_opt = val
         J_SCVx_opt = compute_J(x_opt, u_opt, T, tau_val, lamb_val, dyn_par, ng,
-                               f_func, f_g, S_x, c_x, S_u, c_u, tf)
+                               f_func, f_g, S_x, c_x, S_u, c_u, tf, cost_terms)
         oJ_SCVx = compute_J(ox, ou, T, tau_val, lamb_val, dyn_par, ng,
-                            f_func, f_g, S_x, c_x, S_u, c_u, tf)
+                            f_func, f_g, S_x, c_x, S_u, c_u, tf, cost_terms)
 
         norm_diff = np.max(np.linalg.norm(x_opt - ox, ord=2, axis=0))
         norm_diff_1 = np.max(np.linalg.norm(x_opt - ox, ord=1, axis=0))

@@ -15,6 +15,11 @@ COGU_Dev_Library/astrobee_c_output/
 COGU_Dev_Library/astrobee_c_output/build/
 COGU_Library_Enhanced/astrobee_c_output/
 COGU_Library_Enhanced/astrobee_c_output/build/
+COGU_Library_Enhanced/birds_c_output/
+COGU_Library_Enhanced/birds_c_output/build/
+
+# Build artifacts (cmake en la raiz)
+/build/
 
 # Entornos virtuales
 .venv/

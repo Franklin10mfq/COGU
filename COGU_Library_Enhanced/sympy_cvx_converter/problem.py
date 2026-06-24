@@ -1,11 +1,68 @@
 import cvxpy as cp
 import numpy as np
 
+from .cost_dsl import resolve_term
+
+
+def _build_cost_from_terms(cost_terms, vars_, T, sqrt_tau, tau_val, tau_lamb):
+    coeff_map = {'sqrt_tau': sqrt_tau, 'tau': float(tau_val), 'tau_lamb': tau_lamb}
+    cost = 0
+    for term in cost_terms:
+        rt = resolve_term(term)
+        v_full = vars_[rt.var]
+        coeff = coeff_map[rt.coeff] if isinstance(rt.coeff, str) else float(rt.coeff)
+        K = T + 1 if rt.k_range == 'T+1' else T
+        for k in range(K):
+            v = v_full[rt.slc, k:k+1]
+            expr = coeff * v if rt.offset is None else coeff * (v - rt.offset)
+            if rt.kind == 'sumsq':
+                cost += rt.weight * cp.sum_squares(expr)
+            elif rt.kind == 'norm1':
+                cost += rt.weight * cp.norm(expr, 1)
+            elif rt.kind == 'norm2':
+                cost += rt.weight * cp.norm(expr, 2)
+    return cost
+
+
+def _build_bound_constraints(bounds, var, S, c, K):
+    norm_map = {'norm1': 1, 'norm2': 2, 'norminf': 'inf'}
+    result = []
+    for spec in bounds:
+        if isinstance(spec, tuple):
+            slc, norm_type, limit = spec
+            spec = {'kind': 'norm', 'slice': slc, 'norm_type': norm_type, 'limit': limit}
+        kind = spec['kind']
+        slc  = spec['slice']
+        if kind == 'norm':
+            p_val = norm_map[spec['norm_type']]
+            # S/c custom (opcional): matriz de transformacion propia en vez del sub-bloque de S global
+            S_local = spec.get('S')
+            c_local = spec.get('c')
+            for k in range(K):
+                if S_local is not None:
+                    affine = S_local @ var[slc, k:k+1] + c_local
+                else:
+                    affine = S[slc, slc] @ var[slc, k:k+1] + c[slc, 0:1]
+                result.append(cp.norm(affine, p_val) <= float(spec['limit']))
+        elif kind == 'box':
+            lower = spec.get('lower')
+            upper = spec.get('upper')
+            for k in range(K):
+                affine = S[slc, slc] @ var[slc, k:k+1] + c[slc, 0:1]
+                if lower is not None:
+                    result.append(affine >= float(lower))
+                if upper is not None:
+                    result.append(affine <= float(upper))
+        else:
+            raise ValueError(f"_build_bound_constraints: unknown kind={kind!r}")
+    return result
+
 
 def build_problem(nx, nu, T, ng=0,
                   tau_val=1.0, lamb_val=1.0,
                   S_x=None, c_x=None, S_u=None, c_u=None,
-                  state_bounds=None, control_bounds=None):
+                  state_bounds=None, control_bounds=None,
+                  cost_terms=None):
     """
     Construye un problema CVXPY para SCVx compatible con CVXPYgen + CVXPY 1.8.
 
@@ -31,8 +88,6 @@ def build_problem(nx, nu, T, ng=0,
     if c_x is None: c_x = np.zeros((nx, 1))
     if S_u is None: S_u = np.eye(nu)
     if c_u is None: c_u = np.zeros((nu, 1))
-
-    norm_map = {'norm1': 1, 'norm2': 2, 'norminf': 'inf'}
 
     # ==================================================
     # VARIABLES
@@ -68,10 +123,12 @@ def build_problem(nx, nu, T, ng=0,
     # ==================================================
     # COSTO — sqrt_tau y tau_lamb son floats, sin param x var
     # ==================================================
-    cost = 0
+    if cost_terms is None:
+        raise ValueError("cost_terms es obligatorio: declara el costo del problema "
+                         "(ej. [{'kind':'sumsq','var':'u','coeff':'sqrt_tau'}]).")
+    cost = _build_cost_from_terms(cost_terms, {'u': u, 'x': x}, T, sqrt_tau, tau_val, tau_lamb)
     for k in range(T):
-        cost += cp.sum_squares(sqrt_tau * u[:, k:k+1])
-        cost += cp.norm(tau_lamb * vc[:, k:k+1], 1)
+        cost += cp.norm(tau_lamb * vc[:, k:k+1], 1)   # SCVx penalty — always fixed
 
     if ng > 0:
         for k in range(T+1):
@@ -123,25 +180,11 @@ def build_problem(nx, nu, T, ng=0,
             <= vi[:, T:T+1]
         ]
 
-    # Bounds de estado (constantes numpy)
+    # Bounds de estado y control (soporta tuple format y dict format con kind='norm'|'box')
     if state_bounds:
-        for slc, norm_type, limit in state_bounds:
-            p_val = norm_map[norm_type]
-            for k in range(T+1):
-                constraints += [
-                    cp.norm(S_x[slc, slc] @ x[slc, k:k+1]
-                            + c_x[slc, 0:1], p_val) <= float(limit)
-                ]
-
-    # Bounds de control (constantes numpy)
+        constraints += _build_bound_constraints(state_bounds, x, S_x, c_x, T+1)
     if control_bounds:
-        for slc, norm_type, limit in control_bounds:
-            p_val = norm_map[norm_type]
-            for k in range(T):
-                constraints += [
-                    cp.norm(S_u[slc, slc] @ u[slc, k:k+1]
-                            + c_u[slc, 0:1], p_val) <= float(limit)
-                ]
+        constraints += _build_bound_constraints(control_bounds, u, S_u, c_u, T)
 
     # ==================================================
     # PROBLEMA
@@ -160,4 +203,28 @@ def build_problem(nx, nu, T, ng=0,
         'end_pos':   end_pos,
         'S_x': S_x, 'c_x': c_x, 'S_u': S_u, 'c_u': c_u,
         'tau_val': tau_val, 'lamb_val': lamb_val,
+        'cost_terms': cost_terms,
+
+        # ── Fase 3 — metadatos para generacion C generica (Fases 5 y 6) ──
+        'constant_params': {
+            'tau_val':  float(tau_val),
+            'sqrt_tau': sqrt_tau,
+            'tau_lamb': tau_lamb,
+            'S_x': S_x, 'c_x': c_x,
+            'S_u': S_u, 'c_u': c_u,
+        },
+        'iteration_params': {
+            'per_step': {
+                'A':  {'count': T,   'shape': (nx, nx)},
+                'B':  {'count': T,   'shape': (nx, nu)},
+                'y':  {'count': T,   'shape': (nx, 1)},
+                **({'C': {'count': T+1, 'shape': (ng, nx)},
+                    'D': {'count': T+1, 'shape': (ng, nu)},
+                    'z': {'count': T+1, 'shape': (ng, 1)}} if ng > 0 else {}),
+                'ox': {'count': T+1, 'shape': (nx, 1)},
+                'ou': {'count': T+1, 'shape': (nu, 1)},
+            },
+            'scalar':   ['etta'],
+            'boundary': ['start_pos', 'end_pos'],
+        },
     }
