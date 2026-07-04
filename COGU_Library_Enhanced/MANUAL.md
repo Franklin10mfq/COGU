@@ -179,13 +179,28 @@ Ejemplo de traducción (BIRDS-TM):
 
 ### C (si `generate_c=True`) — en `c_output_dir/`
 
+```
+c_output_dir/
+├── CMakeLists.txt      ← para compilar (add_subdirectory(solver/c) + src/*.c)
+├── solver/              ← solver convexo generado por CVXPYgen (no tocar)
+├── src/                 ← TODO el código generado por la librería (.c y .h)
+│   ├── scvx_main.c      ← loop SCVx + datos del problema embebidos + J_cost generado
+│   ├── dynamics.c/.h    ← f, jacobianos A/B, etc. (de la dinámica SymPy)
+│   └── cpg_compat.h     ← adaptador a la API del solver CVXPYgen
+└── build/               ← generado por cmake (compilación local)
+```
+
 | Archivo | Qué es |
 |---|---|
-| `scvx_main.c` | Loop SCVx + datos del problema embebidos + J_cost generado |
-| `dynamics.c` / `dynamics.h` | `f`, jacobianos `A`/`B`, etc. (de la dinámica SymPy) |
-| `cpg_compat.h` | Adaptador a la API del solver CVXPYgen |
+| `src/scvx_main.c` | Loop SCVx + datos del problema embebidos + J_cost generado |
+| `src/dynamics.c` / `src/dynamics.h` | `f`, jacobianos `A`/`B`, etc. (de la dinámica SymPy) |
+| `src/cpg_compat.h` | Adaptador a la API del solver CVXPYgen |
 | `solver/` | Solver convexo generado por CVXPYgen |
 | `CMakeLists.txt` | Para compilar |
+
+Todo el código propio de la librería queda separado en `src/`, distinto del solver de terceros
+(`solver/`) y de los artefactos de compilación (`build/`) — más fácil de inspeccionar o versionar
+selectivamente cuando se trabaje con vehículos nuevos (ej. Waskiri).
 
 Al compilar y correr, el ejecutable imprime los `L/J` por iteración y el **Estado final**.
 
@@ -236,14 +251,44 @@ Usa `examples/birds_tm.py` como plantilla. Pasos:
 - El costo se limita a `sumsq`/`norm1`/`norm2` (no cualquier expresión arbitraria).
 - El `offset` (objetivo de seguimiento) es **constante**, no se puede cambiar en caliente sin
   reconstruir el problema.
-- **Parámetros del algoritmo no ajustables desde el C.** *Toda la física de tu problema* (dinámica,
-  costo, restricciones, frontera, escalado, warm start, `lam`, `tf`) **sí** se embebe: el C resuelve
-  tu problema, cualquiera que sea. Lo que **no** se embebe son los parámetros del *algoritmo* SCVx
-  (`max_iter`, `rho*`, `etta*`, `beta_*`, tolerancias): el C los usa con sus **valores por defecto**,
-  aunque los cambies en Python. Solo importa si tu problema necesita valores distintos a los defaults
-  para converger; en ese caso, edítalos a mano en el `scvx_main.c` generado (≈4 líneas) o amplía la
-  librería para embeberlos (deuda técnica, igual que se hizo con `lam`/`tf`). Astrobee y BIRDS usan
-  los defaults, por eso no les afecta.
+- **Parámetros del algoritmo no ajustables desde el C** (deuda técnica conocida — riesgo 3/10, ver detalle abajo).
+
+### 9.1 Deuda técnica: parámetros del algoritmo SCVx no se embeben en C
+
+**Qué pasa.** *Toda la física de tu problema* (dinámica, costo, restricciones, frontera, escalado,
+warm start, `lam`, `tf`) **sí** se embebe en el C generado: el C resuelve tu problema, cualquiera
+que sea. Lo que **no** se embebe son los parámetros del *algoritmo* SCVx en sí — `max_iter`, `rho0/1/2`,
+`etta0/1`, `beta_sh/gr`, `e_tol`, `epsilon_stop` — que controlan la región de confianza adaptativa,
+no la física. Estos están hardcodeados en `templates/scvx_loop_template.c` (líneas ~331-333) con los
+mismos valores que son el default de `solve_trajectory(...)` en `pipeline.py` (líneas ~73-76):
+`rho0=0.0, rho1=0.1, rho2=0.7, etta0=1e-8, etta1=10.0, beta_sh=2.0, beta_gr=2.0, e_tol=0.005,
+epsilon_stop=1e-5`.
+
+**Por qué es silencioso.** Si en Python llamás a `solve_trajectory(...)` pasando valores distintos
+a los defaults para esos parámetros, el C generado **los ignora sin avisar** — no hay excepción ni
+warning, simplemente usa los valores por defecto del template. Vas a validar la convergencia en
+Python con tus parámetros ajustados, compilar el C, y el C puede converger distinto (o no converger)
+sin que la causa sea obvia — fácil de confundir con un problema de dinámica o del solver.
+
+**Por qué el riesgo es 3/10 y no más.** Astrobee (13 estados, traslación+actitud, con obstáculos) y
+BIRDS-TM (10 estados, actitud pura, ruedas+thrusters) son dos problemas bastante distintos y ambos
+convergen bien con los defaults, sin que nadie los haya tenido que tocar. Son valores genéricos del
+algoritmo, no atados a un vehículo específico — es razonable esperar que un tercer problema de
+dificultad similar también converja con ellos. El riesgo **sube** cuanto más se aleje el próximo
+problema de esa dificultad (dinámica más agresiva/no lineal) y necesite tuning para converger en
+Python.
+
+**Cómo saber si te está afectando.** Si tu `solve_trajectory(...)` en Python usa algún valor de
+`rho0/1/2`, `etta0/1`, `beta_sh/gr`, `e_tol` o `epsilon_stop` distinto al default, y generás C —
+el C **no** va a reflejar ese ajuste.
+
+**Mitigación mientras no se arregla.** Editar a mano esas ~4 líneas en el `src/scvx_main.c` generado
+para que coincidan con lo que usaste en Python.
+
+**Fix definitivo (no aplicado, bajo costo).** Mismo patrón mecánico ya usado para `lam`/`tf` en la
+Fase 6: agregar estos 9 parámetros al dict `embed` en `pipeline.py` y a `generate_c_embedded_data`
+en `codegen.py`. No toca el DSL de costo ni requiere regenerar el solver CVXPYgen — es aditivo puro
+sobre infraestructura existente.
 - El problema debe ser **DPP-compliant** para que CVXPYgen genere el solver C.
 - Los escalares del costo se hornean como `float` (no `cp.Parameter`) por un bug de CVXPY 1.8.
 - Generar el solver C (CVXPYgen) puede tardar varios minutos.

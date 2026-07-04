@@ -185,7 +185,7 @@ print(f"Iter 8: L={h[7]['L_SCVx']:.4f}  J={h[7]['J_SCVx']:.4f}   (ref: L=723.539
 
 print("\n--- Archivos C generados ---")
 for f in ['scvx_main.c', 'dynamics.c', 'dynamics.h', 'cpg_compat.h']:
-    path = os.path.join(C_OUTPUT, f)
+    path = os.path.join(C_OUTPUT, 'src', f)
     size = os.path.getsize(path) if os.path.exists(path) else 0
     status = "OK" if size > 0 else "FALTA"
     print(f"  {f:<20} {size:>8} bytes  [{status}]")

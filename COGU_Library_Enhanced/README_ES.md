@@ -55,9 +55,9 @@ Archivos C generados en: COGU_Dev_Library/astrobee_c_output/
 ```
 
 Esto genera:
-- `astrobee_c_output/dynamics.c / .h` — dinámica del satélite (SymPy → C)
-- `astrobee_c_output/scvx_main.c` — loop SCVx completo
-- `astrobee_c_output/cpg_compat.h` — adaptador del solver
+- `astrobee_c_output/src/dynamics.c / .h` — dinámica del satélite (SymPy → C)
+- `astrobee_c_output/src/scvx_main.c` — loop SCVx completo
+- `astrobee_c_output/src/cpg_compat.h` — adaptador del solver
 - `astrobee_c_output/CMakeLists.txt` — archivo de build multiplataforma
 - `astrobee_c_output/solver/` — código fuente de ECOS (copiado desde `references/solver_t30/`)
 
