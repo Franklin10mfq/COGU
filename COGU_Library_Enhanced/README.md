@@ -84,11 +84,11 @@ End pos: [5.  2.  1.6]
 > se detiene **antes** de generar C — no se produce código de un solve fallido.
 
 Genera en `astrobee_c_output/`:
-- `dynamics.c / .h` — dinámica del satélite (SymPy → C)
-- `scvx_main.c` — loop SCVx completo
-- `cpg_compat.h` — adaptador del solver
-- `CMakeLists.txt` — build multiplataforma
-- `solver/` — solver ECOS generado por CVXPYgen
+- `src/dynamics.c / .h` — dinámica del satélite (SymPy → C)
+- `src/scvx_main.c` — loop SCVx completo
+- `src/cpg_compat.h` — adaptador del solver
+- `CMakeLists.txt` — build multiplataforma (en la raíz)
+- `solver/` — solver ECOS generado por CVXPYgen (en la raíz)
 
 ### Paso 2 — Compilar
 

@@ -234,14 +234,14 @@ def solve_trajectory(states, controls, dynamics, start, end, T, tf,
                 _generate_solver_subprocess(build_kwargs, solver_dir)
                 print(f"[CVXPYgen] Solver C generado en {solver_dir}/c/")
 
-            # 2. Dinamica en C (dynamics.c + dynamics.h)
+            # 2. Dinamica en C (src/dynamics.c + src/dynamics.h)
             generate_c_functions(
                 states=states,
                 controls=controls,
                 dynamics=dynamics,
                 nonconvex_constraints=nonconvex_constraints,
                 dynamic_parameters=dynamic_parameters_sym,
-                output_dir=c_output_dir,
+                output_dir=os.path.join(c_output_dir, 'src'),
             )
 
             # 3. Loop SCVx C (scvx_main.c + cpg_compat.h)
