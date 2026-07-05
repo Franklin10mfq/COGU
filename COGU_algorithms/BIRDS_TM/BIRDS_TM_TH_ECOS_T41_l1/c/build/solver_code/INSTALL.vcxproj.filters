@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\franklin\Documents\Kyutech\githubs\github_COGU\COGU_algorithms\BIRDS_TM\BIRDS_TM_TH_ECOS_T41_l1\c\build\CMakeFiles\4012134870b3091f7ad11fe65f89a6dd\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{15406334-B47C-364C-806D-B7817467CA1E}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
