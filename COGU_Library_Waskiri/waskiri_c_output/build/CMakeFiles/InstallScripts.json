@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/luiss/COGU/COGU_Library_Waskiri/waskiri_c_output/build/cmake_install.cmake",
+		"C:/Users/luiss/COGU/COGU_Library_Waskiri/waskiri_c_output/build/solver/c/cmake_install.cmake",
+		"C:/Users/luiss/COGU/COGU_Library_Waskiri/waskiri_c_output/build/solver/c/solver_code/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
