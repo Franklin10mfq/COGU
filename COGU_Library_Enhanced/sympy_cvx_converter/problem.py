@@ -32,8 +32,9 @@ def _build_bound_constraints(bounds, var, S, c, K):
             slc, norm_type, limit = spec
             spec = {'kind': 'norm', 'slice': slc, 'norm_type': norm_type, 'limit': limit}
         kind = spec['kind']
-        slc  = spec['slice']
+        
         if kind == 'norm':
+            slc  = spec['slice']
             p_val = norm_map[spec['norm_type']]
             # S/c custom (opcional): matriz de transformacion propia en vez del sub-bloque de S global
             S_local = spec.get('S')
@@ -45,6 +46,7 @@ def _build_bound_constraints(bounds, var, S, c, K):
                     affine = S[slc, slc] @ var[slc, k:k+1] + c[slc, 0:1]
                 result.append(cp.norm(affine, p_val) <= float(spec['limit']))
         elif kind == 'box':
+            slc  = spec['slice']
             lower = spec.get('lower')
             upper = spec.get('upper')
             for k in range(K):
@@ -53,6 +55,17 @@ def _build_bound_constraints(bounds, var, S, c, K):
                     result.append(affine >= float(lower))
                 if upper is not None:
                     result.append(affine <= float(upper))
+        elif kind == 'box_affine':
+            lower = spec.get('lower')
+            upper = spec.get('upper')
+            c_affine = spec.get('c_affine')
+            for k in range(K):
+                affine = S @ var[:, k:k+1] + c[:, 0:1]
+                if lower is not None:
+                    result.append(c_affine@affine >= float(lower))
+                if upper is not None:
+                    result.append(c_affine@affine <= float(upper))
+                
         else:
             raise ValueError(f"_build_bound_constraints: unknown kind={kind!r}")
     return result
