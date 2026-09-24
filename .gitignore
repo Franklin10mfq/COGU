@@ -24,3 +24,12 @@ COGU_Library_Enhanced/birds_c_output/build/
 # Entornos virtuales
 .venv/
 env/
+
+# TimeDilation: artefactos de compilacion (se regeneran con cmake)
+COGU_Library_TimeDilation/**/build/
+COGU_Library_TimeDilation/**/*.obj
+COGU_Library_TimeDilation/**/*.pyd
+COGU_Library_TimeDilation/**/*.lib
+
+# Presentaciones (se comparten por fuera del repo)
+*.pptx
